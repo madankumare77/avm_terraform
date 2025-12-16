@@ -1,0 +1,129 @@
+
+name: Infosys-CICD-Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+  deployments: write
+
+env:
+  # Terraform variables (so you don't need -var on the CLI)
+  TF_VAR_subscription_id: ${{ secrets.TEST_AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_tenant_id:       ${{ secrets.AZURE_TENANT_ID }}
+
+  # AzureRM provider / backend OIDC auth
+  ARM_USE_OIDC: true
+  ARM_CLIENT_ID:       ${{ secrets.TEST_AZURE_CLIENT_ID }}
+  ARM_TENANT_ID:       ${{ secrets.AZURE_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.TEST_AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  plan-test:
+    runs-on: ubuntu-latest
+    environment: test
+    env:
+      TF_WORKDIR: ms-infy
+      TFVARS_FILE: env/test.tfvars
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify TF_WORKDIR exists
+        run: |
+          test -d "${{ env.TF_WORKDIR }}" || { echo "ERROR: ${{ env.TF_WORKDIR }} not found"; exit 1; }
+          test -f "${{ env.TF_WORKDIR }}/${{ env.TFVARS_FILE }}" || { echo "ERROR: tfvars file not found: ${{ env.TF_WORKDIR }}/${{ env.TFVARS_FILE }}"; exit 1; }
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.TEST_AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.TEST_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform fmt (check)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform fmt -check -recursive
+
+      - name: Terraform init (AAD backend)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ secrets.TEST_TF_BACKEND_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TEST_TF_BACKEND_SA }}" \
+            -backend-config="container_name=${{ secrets.TEST_TF_BACKEND_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TEST_TF_BACKEND_KEY }}" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Terraform validate
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform validate
+
+      - name: Terraform plan (test)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform plan -input=false \
+            -var-file="${{ env.TFVARS_FILE }}" \
+            -out=tfplan.bin
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-test
+          path: ${{ env.TF_WORKDIR }}/tfplan.bin
+
+
+  apply-test:
+    runs-on: ubuntu-latest
+    needs: [ plan-test ]
+    environment: test
+    env:
+      TF_WORKDIR: ms-infy
+      TFVARS_FILE: env/test.tfvars
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.TEST_AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.TEST_AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform init (AAD backend)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ secrets.TEST_TF_BACKEND_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TEST_TF_BACKEND_SA }}" \
+            -backend-config="container_name=${{ secrets.TEST_TF_BACKEND_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TEST_TF_BACKEND_KEY }}" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-test
+          path: ${{ env.TF_WORKDIR }}
+
+      - name: Verify plan exists
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          ls -la && test -f tfplan.bin || { echo "::error::tfplan.bin missing"; exit 1; }
+
+      - name: Terraform apply (test)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform apply -auto-approve -input=false tfplan.bi
