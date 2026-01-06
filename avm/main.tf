@@ -30,6 +30,7 @@ data "azurerm_resource_group" "rg" {
 locals {
   virtual_networks = {
     vnet1 = {
+      create_vnet            = true
       name                   = "vent-name"
       location               = "centralindia"
       address_space          = ["101.122.96.0/24"]
@@ -71,6 +72,7 @@ locals {
     }
 
     vnet2 = {
+      create_vnet            = true
       name                   = "vent2-name"
       location               = "centralindia"
       address_space          = ["101.123.96.0/24"]
@@ -86,6 +88,30 @@ locals {
         }
       }
     }
+    # vnet1_manual = {
+    #   create_vnet = false
+    #   name                = "vnet1-manual"
+    #   resource_group_name = data.azurerm_resource_group.rg.name
+
+    #   # list the subnets you want to reference from that existing vnet
+    #   existing_subnets = {
+    #     snet1 = { name = "snet1-manual" }
+    #     snet2 = { name = "snet2-manual" }
+    #   }
+    # }
+  }
+}
+
+
+locals {
+  vnets_to_create = {
+    for k, v in local.virtual_networks : k => v
+    if try(v.create_vnet, true)
+  }
+
+  vnets_existing = {
+    for k, v in local.virtual_networks : k => v
+    if !try(v.create_vnet, true)
   }
 }
 
@@ -93,8 +119,8 @@ locals {
 module "avm_res_network_virtualnetwork" {
   source  = "Azure/avm-res-network-virtualnetwork/azurerm"
   version = "0.16.0"
-
-  for_each = local.virtual_networks
+  for_each = { for k, v in local.vnets_to_create : k => v if var.enable_virtual_networks }
+  #for_each = local.vnets_to_create
 
   name     = each.value.name
   location = each.value.location
@@ -121,7 +147,7 @@ module "avm_res_network_virtualnetwork" {
         }
       ]
 
-      network_security_group = (try(s.nsg_key, null) == null ? null : { id = local.nsg_ids[s.nsg_key] })
+      network_security_group = try((try(s.nsg_key, null) == null ? null : { id = local.nsg_ids[s.nsg_key] }), null)
 
       # If delegation exists, create list; else empty
       delegations = try([
@@ -136,6 +162,66 @@ module "avm_res_network_virtualnetwork" {
     }
   }
 }
+
+data "azurerm_virtual_network" "existing" {
+  for_each = { for k, v in local.vnets_existing : k => v if var.enable_virtual_networks }
+
+  #for_each = local.vnets_existing
+
+  name                = each.value.name
+  resource_group_name = coalesce(try(each.value.resource_group_name, null), data.azurerm_resource_group.rg.name)
+}
+
+
+locals {
+  existing_subnets_flat = merge([
+    for vnet_key, vnet in local.vnets_existing : {
+      for subnet_key, subnet in try(vnet.existing_subnets, {}) :
+      "${vnet_key}.${subnet_key}" => {
+        vnet_key    = vnet_key
+        subnet_key  = subnet_key
+        subnet_name = subnet.name
+        rg_name     = coalesce(try(vnet.resource_group_name, null), data.azurerm_resource_group.rg.name)
+      }
+    }
+  ]...)
+}
+
+
+data "azurerm_subnet" "existing" {
+  for_each = { for k, v in local.existing_subnets_flat : k => v if var.enable_virtual_networks }
+
+  #for_each = local.existing_subnets_flat
+
+  name                 = each.value.subnet_name
+  resource_group_name  = each.value.rg_name
+  virtual_network_name = data.azurerm_virtual_network.existing[each.value.vnet_key].name
+}
+
+
+locals {
+  vnet_ids = merge(
+    { for k, m in module.avm_res_network_virtualnetwork : k => m.resource_id },
+    { for k, d in data.azurerm_virtual_network.existing : k => d.id }
+  )
+}
+
+
+locals {
+  created_subnet_ids = merge([
+    for vnet_key, vnet_mod in module.avm_res_network_virtualnetwork : {
+      for subnet_key, subnet_mod in vnet_mod.subnets :
+      "${vnet_key}.${subnet_key}" => subnet_mod.resource_id
+    }
+  ]...)
+
+  existing_subnet_ids = {
+    for k, s in data.azurerm_subnet.existing : k => s.id
+  }
+
+  subnet_ids = merge(local.created_subnet_ids, local.existing_subnet_ids)
+}
+
 
 
 locals {
@@ -217,8 +303,8 @@ locals {
 module "nsg" {
   source  = "Azure/avm-res-network-networksecuritygroup/azurerm"
   version = "0.5.0"
-
-  for_each = local.nsg_create
+  for_each       = { for k, v in local.nsg_create : k => v if var.enable_nsg }
+  #for_each = local.nsg_create
 
   name                = each.value.nsg_name
   resource_group_name = coalesce(try(each.value.rg_name, null), data.azurerm_resource_group.rg.name)
@@ -233,8 +319,8 @@ module "nsg" {
 
 # 4) Lookup only for create_nsg=false
 data "azurerm_network_security_group" "existing" {
-  for_each = local.nsg_lookup
-
+  for_each       = { for k, v in local.nsg_lookup : k => v if var.enable_nsg }
+  #for_each = local.nsg_lookup
   name                = each.value.nsg_name
   resource_group_name = coalesce(try(each.value.rg_name, null), data.azurerm_resource_group.rg.name)
 }
@@ -249,4 +335,16 @@ locals {
 
 output "nsg_ids" {
   value = local.nsg_ids
+}
+
+
+
+variable "enable_virtual_networks" {
+  type    = bool
+  default = false
+}
+variable "enable_nsg" {
+  description = "Enable creation of Network Security Groups"
+  type        = bool
+  default     = false
 }
