@@ -7,3 +7,11 @@ variable "enable_nsg" {
   type        = bool
   default     = false
 }
+variable "enable_kv" {
+    type = bool
+    default = false
+}
+variable "enable_log_analytics_workspace" {
+  type = bool
+  default = false
+}

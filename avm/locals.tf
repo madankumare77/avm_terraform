@@ -41,35 +41,17 @@ locals {
         }
       }
     }
+    vnet1_manual = {
+      create_vnet = false
+      name                = "vnet1-manual"
+      resource_group_name = data.azurerm_resource_group.rg.name
 
-    vnet2 = {
-      create_vnet            = true
-      name                   = "vent2-name"
-      location               = "centralindia"
-      address_space          = ["101.123.96.0/24"]
-      enable_ddos_protection = false
-      tags = { created_by = "terraform" }
-
-      subnet_configs = {
-        snet1 = {
-          name              = "snet1-test"
-          address_prefix    = ["101.123.96.0/28"]
-          service_endpoints = ["Microsoft.KeyVault"]
-          nsg_key = "nsg1"
-        }
+      # list the subnets you want to reference from that existing vnet
+      existing_subnets = {
+        snet1 = { name = "snet1-manual" }
+        snet2 = { name = "snet2-manual" }
       }
     }
-    # vnet1_manual = {
-    #   create_vnet = false
-    #   name                = "vnet1-manual"
-    #   resource_group_name = data.azurerm_resource_group.rg.name
-
-    #   # list the subnets you want to reference from that existing vnet
-    #   existing_subnets = {
-    #     snet1 = { name = "snet1-manual" }
-    #     snet2 = { name = "snet2-manual" }
-    #   }
-    # }
   }
 }
 locals {
@@ -117,7 +99,7 @@ locals {
   subnet_ids = merge(local.created_subnet_ids, local.existing_subnet_ids)
 }
 
-
+#--------------------------------------------------------------------
 locals {
   nsg_configs = {
     nsg1 = {
@@ -198,4 +180,108 @@ locals {
     { for k, m in module.nsg : k => m.resource_id },
     { for k, d in data.azurerm_network_security_group.existing : k => d.id }
   )
+}
+
+#--------------------------------------------------------------------
+#Key Vault configurations
+locals {
+  keyvault_configs = {
+    kv1 = {
+      name                            = "kv003-test-infy"
+      location                        = "centralindia"
+      resource_group_name             = data.azurerm_resource_group.rg.name
+
+      soft_delete_retention_days      = 7
+      purge_protection_enabled        = false
+      legacy_access_policies_enabled  = false
+      enabled_for_deployment          = true
+      enabled_for_disk_encryption     = true
+      enabled_for_template_deployment = true
+      public_network_access_enabled   = false
+      enable_telemetry                = false
+
+      # Optional KV firewall settings. If you keep KV private-only, this is fine.
+      network_acls = {
+        bypass         = "AzureServices"
+        default_action = "Deny"
+
+        # We will convert these vnet/subnet keys -> subnet IDs using local.subnet_ids
+        virtual_network_subnet_refs = [
+          {
+            vnet_key   = "vnet1"
+            subnet_key = "snet1"  # ✅ this is your snet1 in vnet1
+          }
+        ]
+      }
+
+      private_endpoints = {
+        kvpe = {
+          name       = "pvt-endpoint-kv003-test-infy"
+          vnet_key   = "vnet1"
+          subnet_key = "snet1"   # ✅ use snet1 in vnet1
+          # If you already have private DNS zone ids, place them here; otherwise keep empty.
+          private_dns_zone_resource_ids = []
+        }
+      }
+
+      diagnostic_settings = {
+        kvdiag = {
+          name              = "diag-kv003-test-infy"
+          # log_categories    = ["AuditEvent"]
+          # metric_categories = ["AllMetrics"]
+          workspace_resource_id = try(module.law[0].resource_id, null)  # if you have LA workspace
+        }
+      }
+
+      tags = {
+        created_by = "terraform"
+      }
+    }
+    kv2 = {
+      name                            = "kv004-test-infy"
+      location                        = "centralindia"
+      resource_group_name             = data.azurerm_resource_group.rg.name
+
+      soft_delete_retention_days      = 7
+      purge_protection_enabled        = false
+      legacy_access_policies_enabled  = false
+      enabled_for_deployment          = true
+      enabled_for_disk_encryption     = true
+      enabled_for_template_deployment = true
+      public_network_access_enabled   = false
+      enable_telemetry                = false
+
+      # Optional KV firewall settings. If you keep KV private-only, this is fine.
+      network_acls = {
+        bypass         = "AzureServices"
+        default_action = "Deny"
+
+        # We will convert these vnet/subnet keys -> subnet IDs using local.subnet_ids
+        virtual_network_subnet_refs = [
+          {
+            vnet_key   = "vnet1_manual"
+            subnet_key = "snet1"
+          }
+        ]
+      }
+      private_endpoints = {
+        kvpe = {
+          name       = "pvt-endpoint-kv004-test-infy"
+          vnet_key   = "vnet1_manual"
+          subnet_key = "snet1" 
+          # If you already have private DNS zone ids, place them here; otherwise keep empty.
+          private_dns_zone_resource_ids = []
+        }
+      }
+      diagnostic_settings = {
+        kvdiag = {
+          name              = "diag-kv004-test-infy"
+          workspace_resource_id = try(module.law[0].resource_id, null)  # if you have LA workspace
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
+  }
 }
