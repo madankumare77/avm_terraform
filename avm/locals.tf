@@ -307,8 +307,9 @@ locals {
       min_tls_version                   = "TLS1_2"
       public_network_access_enabled     = false
       sftp_enabled                      = false
-      shared_access_key_enabled         = true
+      shared_access_key_enabled         = false
       enable_telemetry                  = false
+
 
       network_rules_subnet_refs = [
         {
@@ -330,10 +331,69 @@ locals {
         stdiag = {
           name                  = "diag-st003testinfy-blob"
           workspace_resource_id = try(module.law[0].resource_id, null)
+          metric_categories     = ["Transaction", "Capacity"]
         }
       }
       tags = {
         created_by = "terraform"
+      }
+    }
+  }
+}
+
+locals {
+  function_app_configs = {
+    function1 = {
+      name                          = "infy-claims-function-app"
+      location                      = data.azurerm_resource_group.rg.location
+      resource_group_name           = data.azurerm_resource_group.rg.name
+      kind                          = "functionapp"
+      os_type                       = "Linux"
+      https_only                    = true
+      service_plan_resource_id      = module.avm-res-web-serverfarm["plan1"].resource_id
+      storage_account_name          = module.avm-res-storage-storageaccount["st1"].name
+      public_network_access_enabled = false
+      enable_application_insights   = false
+      virtual_network_subnet_id     = try(local.subnet_ids["vnet1_manual.snet2"], null)
+      ftp_publish_basic_authentication_enabled   = false
+       webdeploy_publish_basic_authentication_enabled = false
+      user_assigned_identity_keys   = ["function"]
+      enable_telemetry              = false
+      java_version                  = "21"
+      tags = {
+        environment = "testing"
+        created_by  = "terraform"
+      }
+    }
+  }
+}
+
+locals {
+  app_service_plan = {
+    plan1 = {
+      name                = "infy-claims-functions-plan"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      sku_name            = "P1v2"
+      os_type             = "Linux"
+      enable_telemetry    = false
+      tags = {
+        environment = "testing"
+        created_by  = "terraform"
+      }
+    }
+  }
+}
+
+locals {
+  user_assigned_identities = {
+    function = {
+      name                = "infy-claims-function-identity"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      tags = {
+        environment = "testing"
+        created_by  = "terraform"
       }
     }
   }

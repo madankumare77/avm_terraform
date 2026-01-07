@@ -19,3 +19,16 @@ variable "enable_storage_account" {
   type    = bool
   default = true
 }
+variable "enable_function_app" {
+  type    = bool
+  default = true
+}
+
+variable "enable_app_service_plan" {
+  type    = bool
+  default = true
+}
+variable "enable_user_assigned_identities" {
+  type    = bool
+  default = true
+}
