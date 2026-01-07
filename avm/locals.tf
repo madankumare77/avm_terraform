@@ -1,48 +1,48 @@
 locals {
   virtual_networks = {
-    vnet1 = {
-      create_vnet            = true
-      name                   = "vent-name"
-      location               = "centralindia"
-      address_space          = ["101.122.96.0/24"]
-      enable_ddos_protection = false
-      dns_servers            = ["168.63.129.16"]
-      tags = {
-        created_by = "terraform"
-      }
+    # vnet1 = {
+    #   create_vnet            = true
+    #   name                   = "vent-name"
+    #   location               = "centralindia"
+    #   address_space          = ["101.122.96.0/24"]
+    #   enable_ddos_protection = false
+    #   dns_servers            = ["168.63.129.16"]
+    #   tags = {
+    #     created_by = "terraform"
+    #   }
 
-      subnet_configs = {
-        snet1 = {
-          name              = "snet1-test"
-          address_prefix    = ["101.122.96.0/28"]
-          service_endpoints = ["Microsoft.KeyVault"]
-          nsg_key = "nsg1"
-        }
+    #   subnet_configs = {
+    #     snet1 = {
+    #       name              = "snet1-test"
+    #       address_prefix    = ["101.122.96.0/28"]
+    #       service_endpoints = ["Microsoft.KeyVault"]
+    #       nsg_key           = "nsg1"
+    #     }
 
-        snet2 = {
-          name           = "snet2-test"
-          address_prefix = ["101.122.96.64/28"]
-          nsg_key = "nsg2"
-        }
+    #     snet2 = {
+    #       name           = "snet2-test"
+    #       address_prefix = ["101.122.96.64/28"]
+    #       nsg_key        = "nsg2"
+    #     }
 
-        snet3 = {
-          name              = "snet3-test"
-          address_prefix    = ["101.122.96.32/28"]
-          service_endpoints = ["Microsoft.Web"]
-          nsg_key = "nsg2"
+    #     snet3 = {
+    #       name              = "snet3-test"
+    #       address_prefix    = ["101.122.96.32/28"]
+    #       service_endpoints = ["Microsoft.Web"]
+    #       nsg_key           = "nsg2"
 
-          delegation = {
-            name = "functionapp"
-            service_delegation = {
-              name    = "Microsoft.Web/serverFarms"
-              actions = ["Microsoft.Network/virtualNetworks/subnets/action"]
-            }
-          }
-        }
-      }
-    }
+    #       delegation = {
+    #         name = "functionapp"
+    #         service_delegation = {
+    #           name    = "Microsoft.Web/serverFarms"
+    #           actions = ["Microsoft.Network/virtualNetworks/subnets/action"]
+    #         }
+    #       }
+    #     }
+    #   }
+    # }
     vnet1_manual = {
-      create_vnet = false
+      create_vnet         = false
       name                = "vnet1-manual"
       resource_group_name = data.azurerm_resource_group.rg.name
 
@@ -103,10 +103,10 @@ locals {
 locals {
   nsg_configs = {
     nsg1 = {
-      create_nsg     = true
-      nsg_name       = "nsg-infy-test"
-      location       = data.azurerm_resource_group.rg.location
-      rg_name        = data.azurerm_resource_group.rg.name
+      create_nsg = true
+      nsg_name   = "nsg-infy-test"
+      location   = data.azurerm_resource_group.rg.location
+      rg_name    = data.azurerm_resource_group.rg.name
 
       security_rules = [
         {
@@ -187,9 +187,9 @@ locals {
 locals {
   keyvault_configs = {
     kv1 = {
-      name                            = "kv003-test-infy"
-      location                        = "centralindia"
-      resource_group_name             = data.azurerm_resource_group.rg.name
+      name                = "kv003-test-infy"
+      location            = "centralindia"
+      resource_group_name = data.azurerm_resource_group.rg.name
 
       soft_delete_retention_days      = 7
       purge_protection_enabled        = false
@@ -209,7 +209,7 @@ locals {
         virtual_network_subnet_refs = [
           {
             vnet_key   = "vnet1"
-            subnet_key = "snet1"  # ✅ this is your snet1 in vnet1
+            subnet_key = "snet1" # ✅ this is your snet1 in vnet1
           }
         ]
       }
@@ -218,7 +218,7 @@ locals {
         kvpe = {
           name       = "pvt-endpoint-kv003-test-infy"
           vnet_key   = "vnet1"
-          subnet_key = "snet1"   # ✅ use snet1 in vnet1
+          subnet_key = "snet1" # ✅ use snet1 in vnet1
           # If you already have private DNS zone ids, place them here; otherwise keep empty.
           private_dns_zone_resource_ids = []
         }
@@ -226,10 +226,10 @@ locals {
 
       diagnostic_settings = {
         kvdiag = {
-          name              = "diag-kv003-test-infy"
+          name = "diag-kv003-test-infy"
           # log_categories    = ["AuditEvent"]
           # metric_categories = ["AllMetrics"]
-          workspace_resource_id = try(module.law[0].resource_id, null)  # if you have LA workspace
+          workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
         }
       }
 
@@ -238,9 +238,9 @@ locals {
       }
     }
     kv2 = {
-      name                            = "kv004-test-infy"
-      location                        = "centralindia"
-      resource_group_name             = data.azurerm_resource_group.rg.name
+      name                = "kv004-test-infy"
+      location            = "centralindia"
+      resource_group_name = data.azurerm_resource_group.rg.name
 
       soft_delete_retention_days      = 7
       purge_protection_enabled        = false
@@ -268,15 +268,68 @@ locals {
         kvpe = {
           name       = "pvt-endpoint-kv004-test-infy"
           vnet_key   = "vnet1_manual"
-          subnet_key = "snet1" 
+          subnet_key = "snet1"
           # If you already have private DNS zone ids, place them here; otherwise keep empty.
           private_dns_zone_resource_ids = []
         }
       }
       diagnostic_settings = {
         kvdiag = {
-          name              = "diag-kv004-test-infy"
-          workspace_resource_id = try(module.law[0].resource_id, null)  # if you have LA workspace
+          name                  = "diag-kv004-test-infy"
+          workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
+  }
+}
+
+
+#--------------------------------------------------------------------
+# #Storage Account configurations
+locals {
+  storage_account_configs = {
+    st1 = {
+      name                              = "st003testinfy"
+      resource_group_name               = data.azurerm_resource_group.rg.name
+      location                          = data.azurerm_resource_group.rg.location
+      account_tier                      = "Standard"
+      account_replication_type          = "LRS"
+      access_tier                       = "Hot"
+      account_kind                      = "StorageV2"
+      allow_nested_items_to_be_public   = false
+      default_to_oauth_authentication   = true
+      https_traffic_only_enabled        = true
+      infrastructure_encryption_enabled = true
+      local_user_enabled                = false
+      min_tls_version                   = "TLS1_2"
+      public_network_access_enabled     = false
+      sftp_enabled                      = false
+      shared_access_key_enabled         = true
+      enable_telemetry                  = false
+
+      network_rules_subnet_refs = [
+        {
+          vnet_key   = "vnet1_manual"
+          subnet_key = "snet1"
+        }
+      ]
+      private_endpoints = {
+        stpe = {
+          name                          = "pe-st003testinfy-blob"
+          vnet_key                      = "vnet1_manual"
+          subnet_key                    = "snet1"
+          subresource_name              = "blob"
+          private_dns_zone_resource_ids = []
+          tags                          = { env = "test" }
+        }
+      }
+      diagnostic_settings_blob = {
+        stdiag = {
+          name                  = "diag-st003testinfy-blob"
+          workspace_resource_id = try(module.law[0].resource_id, null)
         }
       }
       tags = {
