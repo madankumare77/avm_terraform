@@ -32,3 +32,7 @@ variable "enable_user_assigned_identities" {
   type    = bool
   default = true
 }
+variable "enable_application_insights" {
+  type    = bool
+  default = true
+}

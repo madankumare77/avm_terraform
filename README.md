@@ -5,4 +5,5 @@
 # Working code for storage, its pe, diag
 # Working code for function app, app service plan, vnet integration, diag, user identity integation
 # User assigned identity
+# Application Insights
 

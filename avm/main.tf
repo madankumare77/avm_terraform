@@ -237,23 +237,23 @@ module "avm-res-storage-storageaccount" {
 }
 
 module "avm-res-web-site" {
-  source                                   = "Azure/avm-res-web-site/azurerm"
-  for_each                                 = { for k, v in local.function_app_configs : k => v if var.enable_function_app }
-  version                                  = "0.19.1"
-  name                                     = each.value.name
-  location                                 = each.value.location
-  resource_group_name                      = each.value.resource_group_name
-  kind                                     = each.value.kind
-  os_type                                  = each.value.os_type
-  https_only                               = each.value.https_only
-  service_plan_resource_id                 = each.value.service_plan_resource_id #module.avm-res-web-serverfarm.resource_id
-  storage_account_name                     = each.value.storage_account_name     #module.avm-res-storage-storageaccount["st1"].name
-  public_network_access_enabled            = each.value.public_network_access_enabled
-  enable_application_insights              = each.value.enable_application_insights
-  virtual_network_subnet_id                = each.value.virtual_network_subnet_id
-  ftp_publish_basic_authentication_enabled = each.value.ftp_publish_basic_authentication_enabled
-  webdeploy_publish_basic_authentication_enabled = each.value.webdeploy_publish_basic_authentication_enabled 
-  enable_telemetry                         = each.value.enable_telemetry
+  source                                         = "Azure/avm-res-web-site/azurerm"
+  for_each                                       = { for k, v in local.function_app_configs : k => v if var.enable_function_app }
+  version                                        = "0.19.1"
+  name                                           = each.value.name
+  location                                       = each.value.location
+  resource_group_name                            = each.value.resource_group_name
+  kind                                           = each.value.kind
+  os_type                                        = each.value.os_type
+  https_only                                     = each.value.https_only
+  service_plan_resource_id                       = each.value.service_plan_resource_id #module.avm-res-web-serverfarm.resource_id
+  storage_account_name                           = each.value.storage_account_name     #module.avm-res-storage-storageaccount["st1"].name
+  public_network_access_enabled                  = each.value.public_network_access_enabled
+  enable_application_insights                    = each.value.enable_application_insights
+  virtual_network_subnet_id                      = each.value.virtual_network_subnet_id
+  ftp_publish_basic_authentication_enabled       = each.value.ftp_publish_basic_authentication_enabled
+  webdeploy_publish_basic_authentication_enabled = each.value.webdeploy_publish_basic_authentication_enabled
+  enable_telemetry                               = each.value.enable_telemetry
   # app_settings = {
   #   FUNCTIONS_WORKER_RUNTIME = "java"
   #   WEBSITE_RUN_FROM_PACKAGE = "21"
@@ -265,6 +265,17 @@ module "avm-res-web-site" {
         java_version = each.value.java_version
       }
     }
+    application_insights_connection_string = (
+      each.value.enable_application_insights == false
+      ? module.avm-res-insights-component[each.value.app_insights_key].connection_string
+      : null
+    )
+
+    application_insights_key = (
+      each.value.enable_application_insights == false
+      ? module.avm-res-insights-component[each.value.app_insights_key].instrumentation_key
+      : null
+    )
   }
 
   managed_identities = {
@@ -306,6 +317,35 @@ module "avm-res-managedidentity-userassignedidentity" {
   name                = each.value.name
   location            = each.value.location
   resource_group_name = each.value.resource_group_name
+  enable_telemetry    = false
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+}
+
+locals {
+  app_insights_configs = {
+    app_insights1 = {
+      name                = "infy-test-appinsights"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      workspace_id        = module.law[0].resource_id
+      tags = {
+        created_by = "terraform"
+      }
+    }
+  }
+}
+module "avm-res-insights-component" {
+  source              = "Azure/avm-res-insights-component/azurerm"
+  version             = "0.2.0"
+  for_each            = { for k, v in local.app_insights_configs : k => v if var.enable_application_insights }
+  name                = each.value.name
+  location            = each.value.location
+  resource_group_name = each.value.resource_group_name
+  workspace_id        = each.value.workspace_id
   enable_telemetry    = false
   tags = (
     try(each.value.tags, null) == null
