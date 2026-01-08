@@ -40,3 +40,7 @@ variable "enable_aml_workspace" {
   type    = bool
   default = true
 }
+variable "enable_cognitiveservices" {
+  type    = bool
+  default = true
+}

@@ -398,5 +398,110 @@ module "avm-res-machinelearningservices-workspace" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
-  depends_on                = [module.avm-res-insights-component, module.keyvault, module.avm-res-storage-storageaccount, module.law]
+  depends_on = [module.avm-res-insights-component, module.keyvault, module.avm-res-storage-storageaccount, module.law]
+}
+
+locals {
+  cognitiveservices = {
+    di1 = {
+      enable_account = true
+      name      = "di-claims-test-001"
+      parent_id = data.azurerm_resource_group.rg.id
+      location  = data.azurerm_resource_group.rg.location
+      sku_name  = "S0"
+      kind      = "FormRecognizer"
+      enable_telemetry = false
+      local_auth_enabled = false
+      public_network_access_enabled = false
+      private_endpoints = {
+        di_pe = {
+          name       = "pvt-endpoint-di-claims-test-poc"
+          vnet_key   = "vnet1_manual"
+          subnet_key = "snet1"
+          # If you already have private DNS zone ids, place them here; otherwise keep empty.
+          private_dns_zone_resource_ids = []
+        }
+      }
+      diagnostic_settings = {
+        di_diag = {
+          name                  = "diag-di-claims-test-001"
+          workspace_resource_id = try(module.law[0].resource_id, null)
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
+    openai = {
+      enable_account = true
+      name      = "cind-oai-claims-test12"
+      parent_id = data.azurerm_resource_group.rg.id
+      location  = "South India"
+      sku_name  = "S0"
+      kind      = "OpenAI"
+      enable_telemetry = false
+      local_auth_enabled = false
+      public_network_access_enabled = false
+      private_endpoints = {
+        openai_pe = {
+          name       = "pvt-endpoint-cind-oai-claims-test12"
+          vnet_key   = "vnet1_manual"
+          subnet_key = "snet1"
+          location   = data.azurerm_resource_group.rg.location
+          # If you already have private DNS zone ids, place them here; otherwise keep empty.
+          private_dns_zone_resource_ids = []
+        }
+      }
+      diagnostic_settings = {
+        openai_diag = {
+          name                  = "diag-cind-oai-claims-test12"
+          workspace_resource_id = try(module.law[0].resource_id, null)
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
+  }
+}
+
+module "avm-res-cognitiveservices-account" {
+  source                = "Azure/avm-res-cognitiveservices-account/azurerm"
+  for_each              = { for k, v in local.cognitiveservices : k => v if var.enable_cognitiveservices && v.enable_account }
+  version               = "0.10.2"
+  name                  = each.value.name
+  parent_id             = each.value.parent_id
+  location              = each.value.location
+  sku_name              = each.value.sku_name
+  kind                  = each.value.kind
+  local_auth_enabled    = each.value.local_auth_enabled
+  public_network_access_enabled = each.value.public_network_access_enabled
+  custom_subdomain_name = try(each.value.custom_subdomain_name, each.value.name)
+  enable_telemetry              = each.value.enable_telemetry
+  private_endpoints = {
+    for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
+      name                          = try(pe.name, null)
+      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
+      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
+      location                      = try(pe.location, each.value.location)
+      tags                          = try(pe.tags, null)
+    }
+  }
+
+  diagnostic_settings = (
+    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
+    ? {
+      for diag_k, diag in each.value.diagnostic_settings :
+      diag_k => {
+        name                  = try(diag.name, null)
+        workspace_resource_id = try(diag.workspace_resource_id, null)
+      }
+    }
+    : null
+  )
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
 }
