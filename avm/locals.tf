@@ -358,9 +358,19 @@ locals {
       ftp_publish_basic_authentication_enabled       = false
       webdeploy_publish_basic_authentication_enabled = false
       user_assigned_identity_keys                    = ["function"]
-      app_insights_key                               = "app_insights1"
       enable_telemetry                               = false
-      java_version                                   = "21"
+      site_config = {
+        always_on = false
+        app_insights_key  = "app_insights1"
+        application_stack = {
+            java = { java_version = "21" }
+        }
+      }
+      app_settings = {
+        FUNCTIONS_WORKER_RUNTIME = "java"
+        JAVA_VERSION             = "21"
+        # Add more app settings as needed
+      }
       tags = {
         environment = "testing"
         created_by  = "terraform"

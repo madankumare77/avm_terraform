@@ -254,26 +254,24 @@ module "avm-res-web-site" {
   ftp_publish_basic_authentication_enabled       = each.value.ftp_publish_basic_authentication_enabled
   webdeploy_publish_basic_authentication_enabled = each.value.webdeploy_publish_basic_authentication_enabled
   enable_telemetry                               = each.value.enable_telemetry
-  # app_settings = {
-  #   FUNCTIONS_WORKER_RUNTIME = "java"
-  #   WEBSITE_RUN_FROM_PACKAGE = "21"
-  #   JAVA_VERSION             = "21"
-  # }
+  app_settings = (
+    try(each.value.app_settings, null) == null
+    ? null
+    : { for k, v in each.value.app_settings : k => tostring(v) }
+  )
   site_config = {
-    application_stack = {
-      java = {
-        java_version = each.value.java_version
-      }
-    }
+    always_on = try(each.value.site_config.always_on, null)
+    application_stack = try(each.value.site_config.application_stack, null)
+    
     application_insights_connection_string = (
       each.value.enable_application_insights == false
-      ? module.avm-res-insights-component[each.value.app_insights_key].connection_string
+      ? module.avm-res-insights-component[each.value.site_config.app_insights_key].connection_string
       : null
     )
 
     application_insights_key = (
       each.value.enable_application_insights == false
-      ? module.avm-res-insights-component[each.value.app_insights_key].instrumentation_key
+      ? module.avm-res-insights-component[each.value.site_config.app_insights_key].instrumentation_key
       : null
     )
   }
