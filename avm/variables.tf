@@ -9,7 +9,7 @@ variable "enable_nsg" {
 }
 variable "enable_kv" {
   type    = bool
-  default = false
+  default = true
 }
 variable "enable_log_analytics_workspace" {
   type    = bool
@@ -33,6 +33,10 @@ variable "enable_user_assigned_identities" {
   default = true
 }
 variable "enable_application_insights" {
+  type    = bool
+  default = true
+}
+variable "enable_aml_workspace" {
   type    = bool
   default = true
 }

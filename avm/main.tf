@@ -3,7 +3,9 @@
 data "azurerm_resource_group" "rg" {
   name = "madan-test"
 }
-
+#--------------------------------------------------------------------
+# Virtual Network and Subnet
+#--------------------------------------------------------------------
 module "avm_res_network_virtualnetwork" {
   source   = "Azure/avm-res-network-virtualnetwork/azurerm"
   version  = "0.16.0"
@@ -23,8 +25,6 @@ module "avm_res_network_virtualnetwork" {
     for sk, s in each.value.subnet_configs : sk => {
       name             = s.name
       address_prefixes = s.address_prefix
-
-      # Convert ["Microsoft.KeyVault","Microsoft.Web"] -> [{service="Microsoft.KeyVault"}, {service="Microsoft.Web"}]
       service_endpoints_with_location = [
         for svc in try(s.service_endpoints, []) : {
           service = svc
@@ -53,15 +53,11 @@ module "avm_res_network_virtualnetwork" {
   )
 }
 
-
 data "azurerm_virtual_network" "existing" {
   for_each            = { for k, v in local.vnets_existing : k => v if var.enable_virtual_networks }
   name                = each.value.name
   resource_group_name = coalesce(try(each.value.resource_group_name, null), data.azurerm_resource_group.rg.name)
 }
-
-
-
 data "azurerm_subnet" "existing" {
   for_each             = { for k, v in local.existing_subnets_flat : k => v if var.enable_virtual_networks }
   name                 = each.value.subnet_name
@@ -70,7 +66,8 @@ data "azurerm_subnet" "existing" {
 }
 
 #--------------------------------------------------------------------
-# 3) Create NSGs only for create_nsg=true
+# Network Security Group
+#--------------------------------------------------------------------
 module "nsg" {
   source              = "Azure/avm-res-network-networksecuritygroup/azurerm"
   version             = "0.5.0"
@@ -86,19 +83,19 @@ module "nsg" {
     : { for k, v in each.value.tags : k => tostring(v) }
   )
 }
-
 # 4) Lookup only for create_nsg=false
 data "azurerm_network_security_group" "existing" {
   for_each = { for k, v in local.nsg_lookup : k => v if var.enable_nsg }
-  #for_each = local.nsg_lookup
   name                = each.value.nsg_name
   resource_group_name = coalesce(try(each.value.rg_name, null), data.azurerm_resource_group.rg.name)
 }
-
 output "nsg_ids" {
   value = local.nsg_ids
 }
 
+#--------------------------------------------------------------------
+#Key Vault
+#--------------------------------------------------------------------
 module "keyvault" {
   source   = "Azure/avm-res-keyvault-vault/azurerm"
   version  = "0.10.2"
@@ -173,6 +170,7 @@ module "law" {
 
 #--------------------------------------------------------------------
 # #Storage Account
+#--------------------------------------------------------------------
 module "avm-res-storage-storageaccount" {
   source                            = "Azure/avm-res-storage-storageaccount/azurerm"
   for_each                          = { for k, v in local.storage_account_configs : k => v if var.enable_storage_account }
@@ -236,6 +234,9 @@ module "avm-res-storage-storageaccount" {
 
 }
 
+#--------------------------------------------------------------------
+# Function App
+#--------------------------------------------------------------------
 module "avm-res-web-site" {
   source                                         = "Azure/avm-res-web-site/azurerm"
   for_each                                       = { for k, v in local.function_app_configs : k => v if var.enable_function_app }
@@ -260,9 +261,9 @@ module "avm-res-web-site" {
     : { for k, v in each.value.app_settings : k => tostring(v) }
   )
   site_config = {
-    always_on = try(each.value.site_config.always_on, null)
+    always_on         = try(each.value.site_config.always_on, null)
     application_stack = try(each.value.site_config.application_stack, null)
-    
+
     application_insights_connection_string = (
       each.value.enable_application_insights == false
       ? module.avm-res-insights-component[each.value.site_config.app_insights_key].connection_string
@@ -291,6 +292,9 @@ module "avm-res-web-site" {
   depends_on = [module.avm-res-storage-storageaccount, module.avm-res-web-serverfarm]
 }
 
+#--------------------------------------------------------------------
+# App Service Plan
+#--------------------------------------------------------------------
 module "avm-res-web-serverfarm" {
   source              = "Azure/avm-res-web-serverfarm/azurerm"
   version             = "1.0.0"
@@ -308,6 +312,9 @@ module "avm-res-web-serverfarm" {
   )
 }
 
+#--------------------------------------------------------------------
+# User Assigned Identity
+#--------------------------------------------------------------------
 module "avm-res-managedidentity-userassignedidentity" {
   source              = "Azure/avm-res-managedidentity-userassignedidentity/azurerm"
   version             = "0.3.4"
@@ -322,20 +329,9 @@ module "avm-res-managedidentity-userassignedidentity" {
     : { for k, v in each.value.tags : k => tostring(v) }
   )
 }
-
-locals {
-  app_insights_configs = {
-    app_insights1 = {
-      name                = "infy-test-appinsights"
-      location            = data.azurerm_resource_group.rg.location
-      resource_group_name = data.azurerm_resource_group.rg.name
-      workspace_id        = module.law[0].resource_id
-      tags = {
-        created_by = "terraform"
-      }
-    }
-  }
-}
+#--------------------------------------------------------------------
+# Application Insights
+#--------------------------------------------------------------------
 module "avm-res-insights-component" {
   source              = "Azure/avm-res-insights-component/azurerm"
   version             = "0.2.0"
@@ -350,4 +346,52 @@ module "avm-res-insights-component" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
+}
+
+#--------------------------------------------------------------------
+# AML Workspace
+#--------------------------------------------------------------------
+module "avm-res-machinelearningservices-workspace" {
+  source                        = "Azure/avm-res-machinelearningservices-workspace/azurerm"
+  version                       = "0.9.0"
+  for_each                      = { for k, v in local.aml_workspace : k => v if var.enable_aml_workspace }
+  name                          = each.value.name
+  location                      = each.value.location
+  resource_group_name           = each.value.resource_group_name
+  enable_telemetry              = each.value.enable_telemetry
+  public_network_access_enabled = each.value.public_network_access_enabled
+  application_insights = {
+    resource_id = module.avm-res-insights-component[each.value.application_insights_key].resource_id
+  }
+  key_vault = {
+    resource_id = module.keyvault[each.value.key_vault_key].resource_id
+  }
+  storage_account = {
+    resource_id = module.avm-res-storage-storageaccount[each.value.storage_account_key].resource_id
+  }
+  managed_identities = {
+    system_assigned = true
+  }
+  private_endpoints = {
+    for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
+      name                          = try(pe.name, null)
+      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
+      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
+      private_service_connection_name = try(pe.name, null)
+      tags                          = try(pe.tags, null)
+    }
+  }
+  diagnostic_settings = (
+    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
+    ? {
+      for diag_k, diag in each.value.diagnostic_settings :
+      diag_k => {
+        name                  = try(diag.name, null)
+        workspace_resource_id = try(diag.workspace_resource_id, null)
+      }
+    }
+    : null
+  )
+  workspace_managed_network = try(each.value.workspace_managed_network, null)
+  depends_on = [ module.avm-res-insights-component, module.keyvault, module.avm-res-storage-storageaccount, module.law ]
 }

@@ -6,4 +6,4 @@
 # Working code for function app, app service plan, vnet integration, diag, user identity integation
 # User assigned identity
 # Application Insights
-
+# Working code upto aml_worksapce with pe, diag and system managed identity

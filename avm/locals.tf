@@ -1,3 +1,6 @@
+#--------------------------------------------------------------------
+# Virtual Network and Subnet configurations
+#--------------------------------------------------------------------
 locals {
   virtual_networks = {
     # vnet1 = {
@@ -100,6 +103,8 @@ locals {
 }
 
 #--------------------------------------------------------------------
+# Network Security Group configurations
+#--------------------------------------------------------------------
 locals {
   nsg_configs = {
     nsg1 = {
@@ -184,59 +189,60 @@ locals {
 
 #--------------------------------------------------------------------
 #Key Vault configurations
+#--------------------------------------------------------------------
 locals {
   keyvault_configs = {
-    kv1 = {
-      name                = "kv003-test-infy"
-      location            = "centralindia"
-      resource_group_name = data.azurerm_resource_group.rg.name
+    # kv1 = {
+    #   name                = "kv003-test-infy"
+    #   location            = "centralindia"
+    #   resource_group_name = data.azurerm_resource_group.rg.name
 
-      soft_delete_retention_days      = 7
-      purge_protection_enabled        = false
-      legacy_access_policies_enabled  = false
-      enabled_for_deployment          = true
-      enabled_for_disk_encryption     = true
-      enabled_for_template_deployment = true
-      public_network_access_enabled   = false
-      enable_telemetry                = false
+    #   soft_delete_retention_days      = 7
+    #   purge_protection_enabled        = false
+    #   legacy_access_policies_enabled  = false
+    #   enabled_for_deployment          = true
+    #   enabled_for_disk_encryption     = true
+    #   enabled_for_template_deployment = true
+    #   public_network_access_enabled   = false
+    #   enable_telemetry                = false
 
-      # Optional KV firewall settings. If you keep KV private-only, this is fine.
-      network_acls = {
-        bypass         = "AzureServices"
-        default_action = "Deny"
+    #   # Optional KV firewall settings. If you keep KV private-only, this is fine.
+    #   network_acls = {
+    #     bypass         = "AzureServices"
+    #     default_action = "Deny"
 
-        # We will convert these vnet/subnet keys -> subnet IDs using local.subnet_ids
-        virtual_network_subnet_refs = [
-          {
-            vnet_key   = "vnet1"
-            subnet_key = "snet1" # ✅ this is your snet1 in vnet1
-          }
-        ]
-      }
+    #     # We will convert these vnet/subnet keys -> subnet IDs using local.subnet_ids
+    #     virtual_network_subnet_refs = [
+    #       {
+    #         vnet_key   = "vnet1"
+    #         subnet_key = "snet1" # ✅ this is your snet1 in vnet1
+    #       }
+    #     ]
+    #   }
 
-      private_endpoints = {
-        kvpe = {
-          name       = "pvt-endpoint-kv003-test-infy"
-          vnet_key   = "vnet1"
-          subnet_key = "snet1" # ✅ use snet1 in vnet1
-          # If you already have private DNS zone ids, place them here; otherwise keep empty.
-          private_dns_zone_resource_ids = []
-        }
-      }
+    #   private_endpoints = {
+    #     kvpe = {
+    #       name       = "pvt-endpoint-kv003-test-infy"
+    #       vnet_key   = "vnet1"
+    #       subnet_key = "snet1" # ✅ use snet1 in vnet1
+    #       # If you already have private DNS zone ids, place them here; otherwise keep empty.
+    #       private_dns_zone_resource_ids = []
+    #     }
+    #   }
 
-      diagnostic_settings = {
-        kvdiag = {
-          name = "diag-kv003-test-infy"
-          # log_categories    = ["AuditEvent"]
-          # metric_categories = ["AllMetrics"]
-          workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
-        }
-      }
+    #   diagnostic_settings = {
+    #     kvdiag = {
+    #       name = "diag-kv003-test-infy"
+    #       # log_categories    = ["AuditEvent"]
+    #       # metric_categories = ["AllMetrics"]
+    #       workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
+    #     }
+    #   }
 
-      tags = {
-        created_by = "terraform"
-      }
-    }
+    #   tags = {
+    #     created_by = "terraform"
+    #   }
+    # }
     kv2 = {
       name                = "kv004-test-infy"
       location            = "centralindia"
@@ -289,6 +295,7 @@ locals {
 
 #--------------------------------------------------------------------
 # #Storage Account configurations
+#--------------------------------------------------------------------
 locals {
   storage_account_configs = {
     st1 = {
@@ -341,6 +348,9 @@ locals {
   }
 }
 
+#--------------------------------------------------------------------
+# Function App configurations
+#--------------------------------------------------------------------
 locals {
   function_app_configs = {
     function1 = {
@@ -360,10 +370,10 @@ locals {
       user_assigned_identity_keys                    = ["function"]
       enable_telemetry                               = false
       site_config = {
-        always_on = false
-        app_insights_key  = "app_insights1"
+        always_on        = false
+        app_insights_key = "app_insights1"
         application_stack = {
-            java = { java_version = "21" }
+          java = { java_version = "21" }
         }
       }
       app_settings = {
@@ -378,7 +388,9 @@ locals {
     }
   }
 }
-
+#--------------------------------------------------------------------
+# App Service Plan configurations
+#--------------------------------------------------------------------
 locals {
   app_service_plan = {
     plan1 = {
@@ -396,6 +408,46 @@ locals {
   }
 }
 
+#--------------------------------------------------------------------
+# AML Workspace Configurations
+#--------------------------------------------------------------------
+locals {
+  aml_workspace = {
+    aml1 = {
+      name                          = "mlw01-claims-test"
+      location                      = data.azurerm_resource_group.rg.location
+      resource_group_name           = data.azurerm_resource_group.rg.name
+      enable_telemetry              = false
+      public_network_access_enabled = false
+      application_insights_key      = "app_insights1"
+      key_vault_key                 = "kv2"
+      storage_account_key           = "st1"
+      workspace_managed_network = {
+        isolation_mode = "AllowOnlyApprovedOutbound"
+        firewall_sku   = "Basic"
+      }
+      private_endpoints = {
+        amlpe = {
+          name                          = "pe-mlw01-claims-test"
+          vnet_key                      = "vnet1_manual"
+          subnet_key                    = "snet1"
+          subresource_name              = "blob"
+          private_dns_zone_resource_ids = []
+        }
+      }
+      diagnostic_settings = {
+        amldiag = {
+          name                  = "diag-mlw01-claims-test"
+          workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
+        }
+      }
+    }
+  }
+}
+
+#--------------------------------------------------------------------
+# User Assigned Identity configurations
+#--------------------------------------------------------------------
 locals {
   user_assigned_identities = {
     function = {
@@ -405,6 +457,22 @@ locals {
       tags = {
         environment = "testing"
         created_by  = "terraform"
+      }
+    }
+  }
+}
+#--------------------------------------------------------------------
+# Application Insights configurations
+#--------------------------------------------------------------------
+locals {
+  app_insights_configs = {
+    app_insights1 = {
+      name                = "infy-test-appinsights"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      workspace_id        = module.law[0].resource_id
+      tags = {
+        created_by = "terraform"
       }
     }
   }
