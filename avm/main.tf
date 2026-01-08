@@ -85,7 +85,7 @@ module "nsg" {
 }
 # 4) Lookup only for create_nsg=false
 data "azurerm_network_security_group" "existing" {
-  for_each = { for k, v in local.nsg_lookup : k => v if var.enable_nsg }
+  for_each            = { for k, v in local.nsg_lookup : k => v if var.enable_nsg }
   name                = each.value.nsg_name
   resource_group_name = coalesce(try(each.value.rg_name, null), data.azurerm_resource_group.rg.name)
 }
@@ -370,15 +370,15 @@ module "avm-res-machinelearningservices-workspace" {
     resource_id = module.avm-res-storage-storageaccount[each.value.storage_account_key].resource_id
   }
   managed_identities = {
-    system_assigned = true
+    system_assigned = try(each.value.managed_identities.system_assigned, false)
   }
   private_endpoints = {
     for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
-      name                          = try(pe.name, null)
-      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
-      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
+      name                            = try(pe.name, null)
+      subnet_resource_id              = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
+      private_dns_zone_resource_ids   = try(pe.private_dns_zone_resource_ids, [])
       private_service_connection_name = try(pe.name, null)
-      tags                          = try(pe.tags, null)
+      tags                            = try(pe.tags, null)
     }
   }
   diagnostic_settings = (
@@ -393,5 +393,10 @@ module "avm-res-machinelearningservices-workspace" {
     : null
   )
   workspace_managed_network = try(each.value.workspace_managed_network, null)
-  depends_on = [ module.avm-res-insights-component, module.keyvault, module.avm-res-storage-storageaccount, module.law ]
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+  depends_on                = [module.avm-res-insights-component, module.keyvault, module.avm-res-storage-storageaccount, module.law]
 }

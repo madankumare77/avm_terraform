@@ -426,6 +426,9 @@ locals {
         isolation_mode = "AllowOnlyApprovedOutbound"
         firewall_sku   = "Basic"
       }
+      managed_identities = {
+        system_assigned = true
+      }
       private_endpoints = {
         amlpe = {
           name                          = "pe-mlw01-claims-test"
@@ -441,6 +444,9 @@ locals {
           workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
         }
       }
+      tags = {
+        created_by = "terraform"
+      }
     }
   }
 }
@@ -454,10 +460,6 @@ locals {
       name                = "infy-claims-function-identity"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
-      tags = {
-        environment = "testing"
-        created_by  = "terraform"
-      }
     }
   }
 }
