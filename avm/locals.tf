@@ -57,50 +57,6 @@ locals {
     }
   }
 }
-locals {
-  vnets_to_create = {
-    for k, v in local.virtual_networks : k => v
-    if try(v.create_vnet, true)
-  }
-
-  vnets_existing = {
-    for k, v in local.virtual_networks : k => v
-    if !try(v.create_vnet, true)
-  }
-}
-locals {
-  existing_subnets_flat = merge([
-    for vnet_key, vnet in local.vnets_existing : {
-      for subnet_key, subnet in try(vnet.existing_subnets, {}) :
-      "${vnet_key}.${subnet_key}" => {
-        vnet_key    = vnet_key
-        subnet_key  = subnet_key
-        subnet_name = subnet.name
-        rg_name     = coalesce(try(vnet.resource_group_name, null), data.azurerm_resource_group.rg.name)
-      }
-    }
-  ]...)
-}
-locals {
-  vnet_ids = merge(
-    { for k, m in module.avm_res_network_virtualnetwork : k => m.resource_id },
-    { for k, d in data.azurerm_virtual_network.existing : k => d.id }
-  )
-}
-locals {
-  created_subnet_ids = merge([
-    for vnet_key, vnet_mod in module.avm_res_network_virtualnetwork : {
-      for subnet_key, subnet_mod in vnet_mod.subnets :
-      "${vnet_key}.${subnet_key}" => subnet_mod.resource_id
-    }
-  ]...)
-
-  existing_subnet_ids = {
-    for k, s in data.azurerm_subnet.existing : k => s.id
-  }
-
-  subnet_ids = merge(local.created_subnet_ids, local.existing_subnet_ids)
-}
 
 #--------------------------------------------------------------------
 # Network Security Group configurations
@@ -138,53 +94,6 @@ locals {
       # location optional for lookup; NSG has a location but data source doesn't need it
     }
   }
-
-  # 1) Split: create vs lookup
-  nsg_create = {
-    for k, v in local.nsg_configs : k => v
-    if try(v.create_nsg, true)
-  }
-
-  nsg_lookup = {
-    for k, v in local.nsg_configs : k => v
-    if !try(v.create_nsg, true)
-  }
-
-  # 2) Convert rules list -> map keyed by rule name (module requires map(object(...))) [1](https://github.com/Azure/terraform-azurerm-avm-res-network-networksecuritygroup)
-  nsg_security_rules = {
-    for nsg_key, nsg in local.nsg_create : nsg_key => {
-      for r in try(nsg.security_rules, []) : r.name => {
-        # required fields
-        name      = r.name
-        priority  = r.priority
-        direction = r.direction
-        access    = r.access
-        protocol  = r.protocol
-
-        # optional fields (pass only if present)
-        source_address_prefix      = try(r.source_address_prefix, null)
-        destination_address_prefix = try(r.destination_address_prefix, null)
-
-        source_port_range      = try(r.source_port_range, null)
-        destination_port_range = try(r.destination_port_range, null)
-
-        # If in future you use *ranges*, module supports these too [1](https://github.com/Azure/terraform-azurerm-avm-res-network-networksecuritygroup)
-        source_address_prefixes      = try(r.source_address_prefixes, null)
-        destination_address_prefixes = try(r.destination_address_prefixes, null)
-        source_port_ranges           = try(r.source_port_ranges, null)
-        destination_port_ranges      = try(r.destination_port_ranges, null)
-
-        description = try(r.description, null)
-      }
-    }
-  }
-}
-# 5) Unified outputs (IDs of created + existing)
-locals {
-  nsg_ids = merge(
-    { for k, m in module.nsg : k => m.resource_id },
-    { for k, d in data.azurerm_network_security_group.existing : k => d.id }
-  )
 }
 
 #--------------------------------------------------------------------
@@ -473,6 +382,78 @@ locals {
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
       workspace_id        = module.law[0].resource_id
+      tags = {
+        created_by = "terraform"
+      }
+    }
+  }
+}
+#--------------------------------------------------------------------
+# Cognitive Services Account configuration
+#--------------------------------------------------------------------
+locals {
+  cognitiveservices = {
+    #----------------------------------------------------------------
+    # Document Intelligence
+    #----------------------------------------------------------------
+    di1 = {
+      enable_account = true
+      name      = "di-claims-test-001"
+      parent_id = data.azurerm_resource_group.rg.id
+      location  = data.azurerm_resource_group.rg.location
+      sku_name  = "S0"
+      kind      = "FormRecognizer"
+      enable_telemetry = false
+      local_auth_enabled = false
+      public_network_access_enabled = false
+      private_endpoints = {
+        di_pe = {
+          name       = "pvt-endpoint-di-claims-test-poc"
+          vnet_key   = "vnet1_manual"
+          subnet_key = "snet1"
+          # If you already have private DNS zone ids, place them here; otherwise keep empty.
+          private_dns_zone_resource_ids = []
+        }
+      }
+      diagnostic_settings = {
+        di_diag = {
+          name                  = "diag-di-claims-test-001"
+          workspace_resource_id = try(module.law[0].resource_id, null)
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
+    #----------------------------------------------------------------
+    # Azure Open AI
+    #----------------------------------------------------------------
+    openai = {
+      enable_account = true
+      name      = "cind-oai-claims-test12"
+      parent_id = data.azurerm_resource_group.rg.id
+      location  = "South India"
+      sku_name  = "S0"
+      kind      = "OpenAI"
+      enable_telemetry = false
+      local_auth_enabled = false
+      public_network_access_enabled = false
+      private_endpoints = {
+        openai_pe = {
+          name       = "pvt-endpoint-cind-oai-claims-test12"
+          vnet_key   = "vnet1_manual"
+          subnet_key = "snet1"
+          location   = data.azurerm_resource_group.rg.location
+          # If you already have private DNS zone ids, place them here; otherwise keep empty.
+          private_dns_zone_resource_ids = []
+        }
+      }
+      diagnostic_settings = {
+        openai_diag = {
+          name                  = "diag-cind-oai-claims-test12"
+          workspace_resource_id = try(module.law[0].resource_id, null)
+        }
+      }
       tags = {
         created_by = "terraform"
       }
