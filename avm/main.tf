@@ -445,6 +445,77 @@ module "avm-res-cognitiveservices-account" {
   )
 }
 #--------------------------------------------------------------------
+# Cosmos DB Account configuration
+#--------------------------------------------------------------------
+module "avm-res-documentdb-databaseaccount" {
+  source  = "Azure/avm-res-documentdb-databaseaccount/azurerm"
+  version = "0.10.0"
+
+  for_each = var.enable_cosmosdb_account ? local.cosmosdb_account_configs : {}
+
+  name                = each.value.name
+  location            = each.value.location
+  resource_group_name = each.value.resource_group_name
+  minimal_tls_version = try(each.value.minimal_tls_version, null)
+  enable_telemetry    = each.value.enable_telemetry
+  public_network_access_enabled = try(each.value.public_network_access_enabled, false)
+  backup                        = try(each.value.backup, {})
+  mongo_databases      = try(each.value.mongo_databases, {})
+  mongo_server_version = try(each.value.mongo_server_version, null)
+  geo_locations = try(each.value.geo_locations, null)
+  private_endpoints_manage_dns_zone_group = false
+
+  consistency_policy = {
+    consistency_level = "Session"
+  }
+
+  capabilities = [
+    {
+      name = "EnableMongo"
+    }
+  ]
+  managed_identities = {
+    user_assigned_resource_ids = toset([
+      for id_key in try(each.value.user_assigned_identity_keys, []) :
+      module.avm-res-managedidentity-userassignedidentity[id_key].resource_id
+    ])
+  }
+
+  private_endpoints = {
+    for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
+      name                          = try(pe.name, null)
+      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
+      subresource_name              = pe.subresource_name
+      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
+      tags                          = try(pe.tags, null)
+    }
+  }
+
+  diagnostic_settings = (
+    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
+    ? {
+      for diag_k, diag in each.value.diagnostic_settings :
+      diag_k => {
+        name                  = try(diag.name, null)
+        workspace_resource_id = try(diag.workspace_resource_id, null)
+        metric_categories     = try(diag.metric_categories, ["SLI", "Requests"])
+        # optional (safe): log groups/categories if you want
+        log_groups            = try(diag.log_groups, null)
+        log_categories        = try(diag.log_categories, null)
+
+      }
+    }
+    : null
+  )
+
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+}
+
+#--------------------------------------------------------------------
 # Virtual Network Locals to check the condition to create or use existing
 #--------------------------------------------------------------------
 locals {

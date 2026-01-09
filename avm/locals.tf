@@ -269,8 +269,8 @@ locals {
       kind                                           = "functionapp"
       os_type                                        = "Linux"
       https_only                                     = true
-      service_plan_resource_id                       = module.avm-res-web-serverfarm["plan1"].resource_id
-      storage_account_name                           = module.avm-res-storage-storageaccount["st1"].name
+      service_plan_resource_id                       = try(module.avm-res-web-serverfarm["plan1"].resource_id, null)
+      storage_account_name                           = try(module.avm-res-storage-storageaccount["st1"].name, null)
       public_network_access_enabled                  = false
       enable_application_insights                    = false
       virtual_network_subnet_id                      = try(local.subnet_ids["vnet1_manual.snet2"], null)
@@ -365,8 +365,13 @@ locals {
 #--------------------------------------------------------------------
 locals {
   user_assigned_identities = {
-    function = {
-      name                = "infy-claims-function-identity"
+    # function = {
+    #   name                = "infy-claims-function-identity"
+    #   location            = data.azurerm_resource_group.rg.location
+    #   resource_group_name = data.azurerm_resource_group.rg.name
+    # }
+    cosmosdb = {
+      name                = "mannaged_identity_cosdb-cind-claims-test"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
     }
@@ -452,6 +457,70 @@ locals {
         openai_diag = {
           name                  = "diag-cind-oai-claims-test12"
           workspace_resource_id = try(module.law[0].resource_id, null)
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
+  }
+}
+
+#--------------------------------------------------------------------
+# Cosmos DB Account configuration
+#--------------------------------------------------------------------
+locals {
+  cosmosdb_account_configs = {
+    cosmosdb1 = {
+      name                = "cosdb001-cind-claims-test"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      enable_telemetry    = false
+      public_network_access_enabled = false
+      minimal_tls_version = "Tls12"
+      user_assigned_identity_keys = ["cosmosdb"]
+
+      # continuous backup + 30 days tier
+      backup = {
+        type = "Continuous"
+        tier = "Continuous30Days"
+      }
+
+      # MongoDB API (module sets kind=MongoDB when mongo_databases exists)
+      mongo_server_version = "4.0"
+      mongo_databases = {  #With AVM, the module decides MongoDB mode using mongo_databases. So, you’d have to provide at least one database entry.
+        claimsdb = {
+          name       = "claimsdb"
+          throughput = 400
+        }
+      }
+      #geo replication: primary = RG location, failover = South India
+      geo_locations = [
+        {
+          location          = data.azurerm_resource_group.rg.location
+          failover_priority = 0
+          zone_redundant    = false
+        },
+        {
+          location          = "South India"
+          failover_priority = 1
+          zone_redundant    = false
+        }
+      ]
+      # private_endpoints = {
+      #   cosmospe = {
+      #     name                          = "pvt-endpoint-cosdb001-cind-claims-test"
+      #     vnet_key                      = "vnet1_manual"
+      #     subnet_key                    = "snet1"
+      #     subresource_name              = "MongoDB"
+      #     private_dns_zone_resource_ids = []
+      #   }
+      # }
+      diagnostic_settings = {
+        cosmos_diag = {
+          name                  = "diag-cosdb001-cind-claims-test"
+          workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
+          metric_categories     = ["SLI", "Requests"]
         }
       }
       tags = {

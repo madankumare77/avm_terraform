@@ -9,3 +9,4 @@
 # Working code upto aml_worksapce with pe, diag and system managed identity
 # working code for Document Intelligence with pe and diag settings
 # working code for openai with pe and diag settings
+# working code for request unit database cosmosdb with diag settings, user identity

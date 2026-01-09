@@ -44,3 +44,7 @@ variable "enable_cognitiveservices" {
   type    = bool
   default = false
 }
+variable "enable_cosmosdb_account" {
+  type    = bool
+  default = false
+}
