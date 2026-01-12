@@ -91,7 +91,6 @@ locals {
       create_nsg = false
       nsg_name   = "nsg-infy-manual"
       rg_name    = data.azurerm_resource_group.rg.name
-      # location optional for lookup; NSG has a location but data source doesn't need it
     }
   }
 }
@@ -165,13 +164,9 @@ locals {
       enabled_for_template_deployment = true
       public_network_access_enabled   = false
       enable_telemetry                = false
-
-      # Optional KV firewall settings. If you keep KV private-only, this is fine.
       network_acls = {
         bypass         = "AzureServices"
         default_action = "Deny"
-
-        # We will convert these vnet/subnet keys -> subnet IDs using local.subnet_ids
         virtual_network_subnet_refs = [
           {
             vnet_key   = "vnet1_manual"
@@ -184,7 +179,6 @@ locals {
           name       = "pvt-endpoint-kv004-test-infy"
           vnet_key   = "vnet1_manual"
           subnet_key = "snet1"
-          # If you already have private DNS zone ids, place them here; otherwise keep empty.
           private_dns_zone_resource_ids = []
         }
       }
@@ -225,8 +219,22 @@ locals {
       sftp_enabled                      = false
       shared_access_key_enabled         = false
       enable_telemetry                  = false
-
-
+      blob_properties = {
+        versioning_enabled            = true
+        container_delete_retention_policy = {
+          enabled = true
+          days    = 7
+        }
+        delete_retention_policy = {
+          days = 7
+          permanent_delete_enabled = true
+        }
+      }
+      # immutability_policy = {
+      #   allow_protected_append_writes = false
+      #   period_since_creation_in_days = 30
+      #   state                        = "Unlocked"
+      # }
       network_rules_subnet_refs = [
         {
           vnet_key   = "vnet1_manual"
@@ -239,17 +247,17 @@ locals {
           vnet_key                      = "vnet1_manual"
           subnet_key                    = "snet1"
           subresource_name              = "blob"
-          private_dns_zone_resource_ids = []
+          private_dns_zone_resource_ids = [local.private_dns_ids["storage"]]
           tags                          = { env = "test" }
         }
       }
-      diagnostic_settings_blob = {
-        stdiag = {
-          name                  = "diag-st003testinfy-blob"
-          workspace_resource_id = try(module.law[0].resource_id, null)
-          metric_categories     = ["Transaction", "Capacity"]
-        }
-      }
+      # diagnostic_settings_blob = {
+      #   stdiag = {
+      #     name                  = "diag-st003testinfy-blob"
+      #     workspace_resource_id = try(module.law[0].resource_id, null)
+      #     metric_categories     = ["Transaction", "Capacity"]
+      #   }
+      # }
       tags = {
         created_by = "terraform"
       }
@@ -365,16 +373,16 @@ locals {
 #--------------------------------------------------------------------
 locals {
   user_assigned_identities = {
-    # function = {
-    #   name                = "infy-claims-function-identity"
-    #   location            = data.azurerm_resource_group.rg.location
-    #   resource_group_name = data.azurerm_resource_group.rg.name
-    # }
-    cosmosdb = {
-      name                = "mannaged_identity_cosdb-cind-claims-test"
+    function = {
+      name                = "infy-claims-function-identity"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
     }
+    # cosmosdb = {
+    #   name                = "mannaged_identity_cosdb-cind-claims-test"
+    #   location            = data.azurerm_resource_group.rg.location
+    #   resource_group_name = data.azurerm_resource_group.rg.name
+    # }
   }
 }
 #--------------------------------------------------------------------
@@ -386,7 +394,7 @@ locals {
       name                = "infy-test-appinsights"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
-      workspace_id        = module.law[0].resource_id
+      workspace_id        = try(module.law[0].resource_id, null)
       tags = {
         created_by = "terraform"
       }
@@ -472,21 +480,17 @@ locals {
 locals {
   cosmosdb_account_configs = {
     cosmosdb1 = {
-      name                = "cosdb001-cind-claims-test"
+      name                = "cosdb004-cind-claims-test"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
       enable_telemetry    = false
       public_network_access_enabled = false
       minimal_tls_version = "Tls12"
-      user_assigned_identity_keys = ["cosmosdb"]
-
-      # continuous backup + 30 days tier
+      #user_assigned_identity_keys = ["cosmosdb"]
       backup = {
         type = "Continuous"
         tier = "Continuous30Days"
       }
-
-      # MongoDB API (module sets kind=MongoDB when mongo_databases exists)
       mongo_server_version = "4.0"
       mongo_databases = {  #With AVM, the module decides MongoDB mode using mongo_databases. So, you’d have to provide at least one database entry.
         claimsdb = {
@@ -494,8 +498,7 @@ locals {
           throughput = 400
         }
       }
-      #geo replication: primary = RG location, failover = South India
-      geo_locations = [
+      geo_locations = [   #geo replication: primary = RG location, failover = South India
         {
           location          = data.azurerm_resource_group.rg.location
           failover_priority = 0
@@ -507,25 +510,48 @@ locals {
           zone_redundant    = false
         }
       ]
-      # private_endpoints = {
-      #   cosmospe = {
-      #     name                          = "pvt-endpoint-cosdb001-cind-claims-test"
-      #     vnet_key                      = "vnet1_manual"
-      #     subnet_key                    = "snet1"
-      #     subresource_name              = "MongoDB"
-      #     private_dns_zone_resource_ids = []
-      #   }
-      # }
-      diagnostic_settings = {
-        cosmos_diag = {
-          name                  = "diag-cosdb001-cind-claims-test"
-          workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
-          metric_categories     = ["SLI", "Requests"]
+      private_endpoints_manage_dns_zone_group = true
+      private_endpoints = {
+        cosmospe = {
+          name                          = "pvt-endpoint-cosdb004-cind-claims-test"
+          vnet_key                      = "vnet1_manual"
+          subnet_key                    = "snet1"
+          subresource_name              = "MongoDB"
+          private_dns_zone_resource_ids = [local.private_dns_ids["cosmosdb"]]
         }
       }
+      # diagnostic_settings = {
+      #   cosmos_diag = {
+      #     name                  = "diag-cosdb001-cind-claims-test"
+      #     workspace_resource_id = try(module.law[0].resource_id, null) # if you have LA workspace
+      #     metric_categories     = ["SLI", "Requests"]
+      #   }
+      # }
       tags = {
         created_by = "terraform"
       }
     }
   }
+}
+
+#--------------------------------------------------------------------
+# Private DNS zone avm module to create and data block to use existing.
+#--------------------------------------------------------------------
+locals {
+  private_dns_zones = {
+    cosmosdb = {
+      create_private_dns_zone = true
+      private_dns_zone_name = "privatelink.mongo.cosmos.azure.com"
+      vnet_id               = local.vnet_ids["vnet1_manual"]
+    }
+    storage = {
+      create_private_dns_zone = false
+      private_dns_zone_name = "privatelink.blob.core.windows.net"
+      resource_group_name = data.azurerm_resource_group.rg.name
+    }
+  }
+  private_dns_ids = merge(
+    { for k, m in module.avm-res-network-privatednszone : k => m.resource_id },
+    { for k, d in data.azurerm_private_dns_zone.existing : k => d.id }
+  )
 }

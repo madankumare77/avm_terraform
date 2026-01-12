@@ -213,6 +213,36 @@ module "avm-res-storage-storageaccount" {
       tags                          = try(pe.tags, null)
     }
   }
+  blob_properties = (
+    try(each.value.blob_properties, null) == null
+    ? null
+    : {
+      change_feed_enabled           = try(each.value.blob_properties.change_feed_enabled, null)
+      change_feed_retention_in_days = try(each.value.blob_properties.change_feed_retention_in_days, null)
+      default_service_version       = try(each.value.blob_properties.default_service_version, null)
+      last_access_time_enabled      = try(each.value.blob_properties.last_access_time_enabled, null)
+      versioning_enabled            = try(each.value.blob_properties.versioning_enabled, null)
+
+      delete_retention_policy = (try(each.value.blob_properties.delete_retention_policy, null) == null ? null : {
+        days = each.value.blob_properties.delete_retention_policy.days
+        permanent_delete_enabled = each.value.blob_properties.delete_retention_policy.permanent_delete_enabled
+      })
+      container_delete_retention_policy = (try(each.value.blob_properties.container_delete_retention_policy, null) == null ? null : {
+        days = each.value.blob_properties.container_delete_retention_policy.days
+        #enabled = each.value.blob_properties.container_delete_retention_policy.enabled
+      })
+    }
+  )
+
+  immutability_policy = (
+    try(each.value.immutability_policy, null) == null
+    ? null
+    : {
+      state         = each.value.immutability_policy.state
+      period_since_creation_in_days = each.value.immutability_policy.period_since_creation_in_days
+      allow_protected_append_writes = each.value.immutability_policy.allow_protected_append_writes
+    }
+  )
 
   diagnostic_settings_blob = (
     contains(keys(each.value), "diagnostic_settings_blob") && length(each.value.diagnostic_settings_blob) > 0
@@ -463,7 +493,7 @@ module "avm-res-documentdb-databaseaccount" {
   mongo_databases      = try(each.value.mongo_databases, {})
   mongo_server_version = try(each.value.mongo_server_version, null)
   geo_locations = try(each.value.geo_locations, null)
-  private_endpoints_manage_dns_zone_group = false
+  private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
 
   consistency_policy = {
     consistency_level = "Session"
@@ -610,4 +640,76 @@ locals {
     { for k, m in module.nsg : k => m.resource_id },
     { for k, d in data.azurerm_network_security_group.existing : k => d.id }
   )
+}
+#--------------------------------------------------------------------
+# rbac Role Assignment
+#--------------------------------------------------------------------
+module "avm-res-authorization-roleassignment" {
+  source  = "Azure/avm-res-authorization-roleassignment/azurerm"
+  version = "0.3.0"
+  count = var.enable_role_assignments ? 1 : 0
+  role_assignments_azure_resource_manager = {
+    user_identity_function_stoage = {
+      scope                = try(module.avm-res-storage-storageaccount["st1"].resource_id, null)
+      role_definition_name = "Storage Blob Data Contributor"
+      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["function"].principal_id, null)
+    }
+  }
+  enable_telemetry = false
+}
+
+#--------------------------------------------------------------------
+# Private Endpoint
+#--------------------------------------------------------------------
+locals {
+  private_endpoint_configs = { 
+    pe_cosmosdb = {
+      name                          = "pe-cosmosdb"
+      subnet_resource_id            = try(local.subnet_ids["vnet1_manual.snet1"], null)
+      private_connection_resource_id = try(module.avm-res-documentdb-databaseaccount["cosmosdb1"].resource_id, null)
+      subresource_names       = ["MongoDB"]
+      private_dns_zone_resource_ids = []
+      location                      = data.azurerm_resource_group.rg.location
+      tags                          = {
+        environment = "test"
+      }
+    }
+  }
+}
+module "avm-res-network-privateendpoint" {
+  source  = "Azure/avm-res-network-privateendpoint/azurerm"
+  version = "0.2.0"
+  for_each = { for k, v in local.private_endpoint_configs : k => v if var.enable_private_endpoints }
+  name                 = each.value.name
+  location             = each.value.location
+  resource_group_name  = data.azurerm_resource_group.rg.name
+  subnet_resource_id   = each.value.subnet_resource_id
+  network_interface_name = each.value.name
+  private_connection_resource_id = each.value.private_connection_resource_id
+  subresource_names       = each.value.subresource_names
+  enable_telemetry        = false
+}
+
+#--------------------------------------------------------------------
+# Private DNS zone avm module to create and data block to use existing.
+#--------------------------------------------------------------------
+module "avm-res-network-privatednszone" {
+  source  = "Azure/avm-res-network-privatednszone/azurerm"
+  version = "0.4.4"
+  for_each = {for k, v in local.private_dns_zones : k => v if var.enable_private_dns_zone && v.create_private_dns_zone }
+  enable_telemetry      = false
+  domain_name = each.value.private_dns_zone_name
+  parent_id = data.azurerm_resource_group.rg.id
+  virtual_network_links = {
+    vnet_link = {
+      name                  = "${each.value.private_dns_zone_name}-vnetlink"
+      virtual_network_id    = each.value.vnet_id
+      registration_enabled  = false
+    }
+  }
+}
+data "azurerm_private_dns_zone" "existing" {
+  for_each = {for k, v in local.private_dns_zones : k => v if var.enable_private_dns_zone && !v.create_private_dns_zone }
+  name                = each.value.private_dns_zone_name
+  resource_group_name = each.value.resource_group_name
 }

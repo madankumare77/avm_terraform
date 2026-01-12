@@ -48,3 +48,15 @@ variable "enable_cosmosdb_account" {
   type    = bool
   default = false
 }
+variable "enable_role_assignments" {
+  type = bool
+  default = false
+}
+variable "enable_private_dns_zone" {
+  type = bool
+  default = false
+}
+variable "enable_private_endpoints" {
+  type = bool
+  default = false
+}

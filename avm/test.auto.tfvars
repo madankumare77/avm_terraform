@@ -7,12 +7,12 @@ enable_nsg              = false # Creates Network Security Groups (NSGs)
 # ───────────────────────────────────────────────────────────────
 #  STORAGE ACCOUNT
 # ───────────────────────────────────────────────────────────────
-enable_storage_account = false # Creates Storage Accounts (Blob/File/Queue etc.)
+enable_storage_account = true # Creates Storage Accounts (Blob/File/Queue etc.)
 
 # ───────────────────────────────────────────────────────────────
 #  MONITORING
 # ───────────────────────────────────────────────────────────────
-enable_log_analytics_workspace = true #Creates a Log Analytics workspace
+enable_log_analytics_workspace = false #Creates a Log Analytics workspace
 enable_application_insights             = false # Creates an Application Insights instance
 
 # ───────────────────────────────────────────────────────────────
@@ -29,3 +29,7 @@ enable_app_service_plan = false  # Creates App Service Plan (Linux/Windows — b
 enable_aml_workspace    = false # Creates Azure Machine Learning workspace
 enable_cognitiveservices = false  # Creates Azure Cognitive Services account (Document Inteligent and Azure OpenAI)
 enable_cosmosdb_account  = true  # Creates Azure CosmosDB account request unit database
+
+
+enable_role_assignments = true  # Enables role assignments module to assign roles to resources
+enable_private_dns_zone = true  # Enable private dns zone to create or use existing.
