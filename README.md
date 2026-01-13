@@ -18,7 +18,7 @@
 
 # Terraform AVM Azure Platform – Full Repository Documentation (with Complete Config Examples)
 
-This repository provisions Azure resources using **Azure Verified Modules (AVM)**. AVM modules are Microsoft-validated, standardized building blocks designed to be composable and aligned to best practices. [3](https://microsoft.sharepoint.com/sites/privacy/SitePages/Privacy-Data-Tagging.aspx?web=1)[4](https://microsoft.sharepoint.com/sites/CustomSolutioning/_layouts/15/Doc.aspx?sourcedoc=%7BD8FA2489-B501-41C7-AA5A-47D3410C3216%7D&file=FY26%20Q1%20ISD%20Customer%20Evidence%20Library%20of%20Delivered%20Stories.pptx&action=edit&mobileredirect=true&DefaultItemOpen=1)
+This repository provisions Azure resources using **Azure Verified Modules (AVM)**. AVM modules are Microsoft-validated, standardized building blocks designed to be composable and aligned to best practices. (https://azure.github.io/Azure-Verified-Modules/indexes/terraform/tf-resource-modules/)
 
 The repo is designed to be:
 - **Toggle-driven** (`enable_*` flags)
