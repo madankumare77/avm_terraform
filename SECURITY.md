@@ -88,3 +88,25 @@ Strong data protection and ransomware recovery posture (point-in-time restore wi
 5. private_endpoints_manage_dns_zone_group = true
 Delegates DNS zone group management to the module (reduces risk of misconfigured DNS zone group and broken private resolution). Correct DNS is mandatory for private endpoint connectivity.
 
+## Function App / App Service hardening (when enabled)
+1) https_only = true
+Forces HTTPS-only access to the app endpoint, preventing plaintext HTTP. (Standard App Service security control.)
+
+2) Disable publishing basic auth:
+ftp_publish_basic_authentication_enabled = false
+webdeploy_publish_basic_authentication_enabled = false
+Disables Basic Auth for FTP and SCM/WebDeploy publishing credentials. This prevents leaked publish profiles / basic creds from being used to deploy or access Kudu endpoints. Microsoft explicitly documents disabling basic auth as a security improvement.
+
+3) public_network_access_enabled = false 
+Reduces public exposure; combined with VNet integration for internal access patterns.
+
+4) VNet integration: virtual_network_subnet_id = local.subnet_ids[""]
+Keeps outbound traffic within VNet patterns (for reaching private endpoints) and helps enforce private access dependencies.
+
+
+## Azure Machine Learning (AML) network isolation
+1) public_network_access_enabled = false
+What it does: Blocks public access to AML workspace, forcing private endpoint access. This is aligned with Azure security controls for AML workspaces.
+
+2) Managed network isolation mode: isolation_mode = "AllowOnlyApprovedOutbound"
+Strong egress control to minimize data exfiltration risk by allowing only approved outbound destinations (and required service tags). This is explicitly recommended as the most restrictive AML managed network mode. 

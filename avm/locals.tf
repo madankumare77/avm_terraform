@@ -106,7 +106,7 @@ locals {
     #   resource_group_name = data.azurerm_resource_group.rg.name
 
     #   soft_delete_retention_days      = 7
-    #   purge_protection_enabled        = false
+    #   purge_protection_enabled        = true
     #   legacy_access_policies_enabled  = false
     #   enabled_for_deployment          = true
     #   enabled_for_disk_encryption     = true
@@ -157,7 +157,7 @@ locals {
       resource_group_name = data.azurerm_resource_group.rg.name
 
       soft_delete_retention_days      = 7
-      purge_protection_enabled        = false
+      purge_protection_enabled        = true
       legacy_access_policies_enabled  = false
       enabled_for_deployment          = true
       enabled_for_disk_encryption     = true
