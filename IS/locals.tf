@@ -29,6 +29,18 @@ locals {
     }
   }
 }
+# NSG Locals to check the condition to create or use existing
+#--------------------------------------------------------------------
+locals {
+  nsg_lookup = {
+    for k, v in local.nsg_configs : k => v
+    if !try(v.create_nsg, true)
+  }
+  nsg_ids = merge(
+    #{ for k, m in module.nsg : k => m.resource_id },
+    { for k, d in data.azurerm_network_security_group.existing : k => d.id }
+  )
+}
 
 locals {
   user_assigned_identities = {
@@ -37,19 +49,99 @@ locals {
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
     }
-    wi_app = {
-      name                = "mi-wi-app-identity"
-      location            = data.azurerm_resource_group.rg.location
-      resource_group_name = data.azurerm_resource_group.rg.name
-    }
-
   }
 }
-
 
 #--------------------------------------------------------------------
 # #AKS configurations
 #--------------------------------------------------------------------
+locals {
+  aks_configs = {
+    dr_aks = {
+      name = "dr-aks-03"
+      resource_group_name = data.azurerm_resource_group.rg.name
+      location = data.azurerm_resource_group.rg.location
+      kubernetes_version         = "1.34.1"
+      sku_tier                   = "Free"
+      oidc_issuer_enabled        = true
+      workload_identity_enabled  = true
+      azure_policy_enabled       = true
+      dns_prefix = "dr-aks-03"
+      local_account_disabled = false
+      role_based_access_control_enabled = false
+      user_assigned_identity_keys                    = ["aks"]
+      default_node_pool = {
+        name            = "systemnp"
+        vm_size         = "Standard_DS3_v2"
+        os_disk_size_gb = 128
+        os_disk_type    = "Managed"
+        zones           = ["1", "2", "3"]
+        min_count            = 3
+        type                 = "VirtualMachineScaleSets"
+        max_count            = 5
+        auto_scaling_enabled = true
+        max_pods             = 110
+        vnet_subnet_id       = data.azurerm_subnet.existing["vnet1_manual:snet1"].id
+        node_labels = {
+          "nodepool-type" = "system"
+        }
+      }
+      node_pools = {
+        np1 = {
+          name    = "usernp1"
+          vm_size = "Standard_D4s_v5"
+          mode    = "User"
+          min_count            = 2
+          max_count            = 10
+          auto_scaling_enabled = true
+          vnet_subnet_id       = data.azurerm_subnet.existing["vnet1_manual:snet1"].id
+          os_sku               = "Ubuntu"
+          os_type              = "Linux"
+          os_disk_size_gb      = 128
+          os_disk_type         = "Managed"
+          max_pods             = 110
+          node_labels = {
+            "workload" = "apps"
+          }
+          node_taints          = ["infysvc=true:NoSchedule"]
+          zones                = ["1", "2", "3"]
+        }
+        np2 = {
+          name    = "usernp2"
+          vm_size = "Standard_D4s_v5"
+          mode    = "User"
+          min_count            = 2
+          max_count            = 10
+          auto_scaling_enabled = true
+          vnet_subnet_id       = data.azurerm_subnet.existing["vnet1_manual:snet1"].id
+          os_sku               = "Ubuntu"
+          os_type              = "Linux"
+          os_disk_size_gb      = 128
+          os_disk_type         = "Managed"
+          max_pods             = 110
+          zones                = ["1", "2", "3"]
+        }
+      }
+      network_profile = {
+        network_plugin      = "azure"          # "azure" (CNI) or "kubenet"
+        network_policy      = "azure"          # "azure" | "calico" (depends on plugin/region)
+        ebpf_data_plane     = "cilium"         # "cilium" (preview in some regions) or null
+        network_plugin_mode = "overlay"
+        dns_service_ip      = "10.2.0.10"
+        service_cidr        = "10.2.0.0/24"
+        outbound_type     = "loadBalancer"
+        load_balancer_sku = "standard"
+      }
+      tags = {
+        environment = "testing"
+        created_by  = "terraform"
+      }
+
+    }
+  }
+}
+
+
 
 
 locals {
