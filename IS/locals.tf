@@ -12,6 +12,7 @@ locals {
       existing_subnets = {
         snet1 = { name = "snet1-manual" }
         snet2 = { name = "snet2-manual" }
+        snet3 = { name = "snet3-manual" }
       }
     }
   }
@@ -46,6 +47,11 @@ locals {
   user_assigned_identities = {
     aks = {
       name                = "mi-aks-identity"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+    }
+    sqlmi = {
+      name                = "mi-sqlmi-identity"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
     }
