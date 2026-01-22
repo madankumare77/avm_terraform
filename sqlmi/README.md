@@ -17,6 +17,7 @@ Two SQL Managed Instances
 In two Azure regions
 VNet connectivity (peering/VPN/ExpressRoute)
 Same DNS Zone (secondary must be created using dns_zone_partner_id)
+if managed dns zone then this dns zone required to integate with both vnets.
 Same storage size
 Secondary is empty
 Both VNets non-overlapping
@@ -31,6 +32,18 @@ So Central India → South India failover is supported as long as quota exists i
 
 #############################################################################################
 #############################################################################################
+    # vnet1 = {
+    #   create_vnet         = false
+    #   name                = "vent-infy-is"
+    #   resource_group_name = data.azurerm_resource_group.rg.name
+
+    #   # list the subnets you want to reference from that existing vnet
+    #   existing_subnets = {
+    #     snetmi = { name = "subnet-mi" }
+    #     snet1 = { name = "snet-pvt" }
+    #     snet2 = { name = "snet-test" }
+    #   }
+    # }
     # vnet-dr = {
     #   create_vnet            = true
     #   parent_id             = data.azurerm_resource_group.rg_dr.id

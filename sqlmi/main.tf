@@ -107,6 +107,16 @@ module "avm-res-network-routetable" {
   enable_telemetry    = false
 }
 
+module "avm-res-network-routetable-primary" {
+  source  = "Azure/avm-res-network-routetable/azurerm"
+  version = "0.4.1"
+  name = "sqlmi-route-table-primary"
+  #location = data.azurerm_resource_group.rg_dr.location
+  location = data.azurerm_resource_group.rg.location
+  resource_group_name = data.azurerm_resource_group.rg.name
+  enable_telemetry    = false
+}
+
 module "avm-res-managedidentity-userassignedidentity" {
   source              = "Azure/avm-res-managedidentity-userassignedidentity/azurerm"
   version             = "0.3.4"
@@ -142,7 +152,7 @@ data "azuread_group" "sql_admins" {
 
 
 #This is the module call
-module "sqlmi_test" {
+module "sqlmi_primary" {
   source = "Azure/avm-res-sql-managedinstance/azurerm"
   version = "0.1.3"
   for_each = { for k, v in local.sqlmi-configs : k => v }
@@ -198,6 +208,7 @@ module "sqlmi_test" {
       diag_k => {
         name                  = try(diag.name, null)
         workspace_resource_id = try(diag.workspace_resource_id, null)
+        log_analytics_destination_type = "AzureDiagnostics"
       }
     }
     : null
@@ -264,13 +275,14 @@ module "sqlmi_secondary" {
       diag_k => {
         name                  = try(diag.name, null)
         workspace_resource_id = try(diag.workspace_resource_id, null)
+        log_analytics_destination_type = "AzureDiagnostics"
       }
     }
     : null
   )
 
   depends_on = [
-    module.avm-res-managedidentity-userassignedidentity, module.nsg, module.sqlmi_test, module.avm_res_network_virtualnetwork
+    module.avm-res-managedidentity-userassignedidentity, module.nsg, module.sqlmi_primary, module.avm_res_network_virtualnetwork
   ]
 }
 
@@ -302,7 +314,7 @@ variable "enable_log_analytics_workspace" {
 resource "azurerm_virtual_network_peering" "primary_to_dr" {
   name                      = "peer-primary-to-dr"
   resource_group_name       = data.azurerm_resource_group.rg.name
-  virtual_network_name      = data.azurerm_virtual_network.existing["vnet1"].name
+  virtual_network_name      = module.avm_res_network_virtualnetwork["vnet-primary"].name
   remote_virtual_network_id = module.avm_res_network_virtualnetwork["vnet-dr"].resource_id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
@@ -314,9 +326,23 @@ resource "azurerm_virtual_network_peering" "dr_to_primary" {
   name                      = "peer-dr-to-primary"
   resource_group_name       = data.azurerm_resource_group.rg_dr.name
   virtual_network_name      = module.avm_res_network_virtualnetwork["vnet-dr"].name
-  remote_virtual_network_id = data.azurerm_virtual_network.existing["vnet1"].id
+  remote_virtual_network_id = module.avm_res_network_virtualnetwork["vnet-primary"].resource_id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   use_remote_gateways          = false
+  depends_on = [module.avm_res_network_virtualnetwork]
 }
 
+
+resource "azurerm_mssql_managed_instance_failover_group" "example" {
+  name                        = "sqlmi-infy-failover-group"
+  location                    = data.azurerm_resource_group.rg.location
+  managed_instance_id         = module.sqlmi_primary["sqlmi_primary"].resource_id
+  partner_managed_instance_id = module.sqlmi_secondary["sqlmi_dr"].resource_id
+  secondary_type              = "Geo"
+  read_write_endpoint_failover_policy {
+    mode          = "Automatic"
+    grace_minutes = 60
+  }
+  depends_on = [ module.nsg ]
+}
