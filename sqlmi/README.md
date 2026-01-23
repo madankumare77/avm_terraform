@@ -216,6 +216,11 @@ locals {
 #--------------------------------------------------------------------
 # #AKS configurations
 #--------------------------------------------------------------------
+1. dns_prefix = "The DNS prefix specified when creating the managed cluster. If you do not specify one, a random prefix will be generated."
+
+2. dns_prefix_private_cluster = "The Private Cluster DNS prefix specified when creating a private cluster. Required if deploying private cluster and providing a private dns zone id(private_dns_zone_id)."
+
+
 locals {
   aks_configs = {
     aks_dr = {
