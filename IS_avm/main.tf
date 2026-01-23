@@ -109,27 +109,13 @@ data "azurerm_network_security_group" "existing" {
   resource_group_name = coalesce(try(each.value.rg_name, null), data.azurerm_resource_group.rg.name)
 }
 
-locals {
-  route_table_configs = {
-    rt_primary = {
-      name = "sqlmi-route-table-primary"
-      location = data.azurerm_resource_group.rg.location
-      resource_group_name = data.azurerm_resource_group.rg.name
-    }
-    rt_dr = {
-      name = "sqlmi-route-table-dr"
-      location = data.azurerm_resource_group.rg_dr.location
-      resource_group_name = data.azurerm_resource_group.rg_dr.name
-    }
-  }
-}
-
 module "avm-res-network-routetable" {
   source  = "Azure/avm-res-network-routetable/azurerm"
+  for_each = { for k, v in local.route_table_configs : k => v }
   version = "0.4.1"
-  name = "sqlmi-route-table-dr"
-  location = data.azurerm_resource_group.rg_dr.location
-  resource_group_name = data.azurerm_resource_group.rg_dr.name
+  name = each.value.name
+  location = each.value.location
+  resource_group_name = each.value.resource_group_name
   enable_telemetry    = false
 }
 

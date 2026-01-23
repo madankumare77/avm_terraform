@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: test
     env:
-      TF_WORKDIR: sqlmi
+      TF_WORKDIR: IS-avm
 
     steps:
       # checkout (already present)

@@ -339,6 +339,25 @@ locals {
     }
   }
 }
+
+#--------------------------------------------------------------------
+# Route Table configurations
+#--------------------------------------------------------------------
+locals {
+  route_table_configs = {
+    rt_primary = {
+      name = "sqlmi-route-table-primary"
+      location = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+    }
+    rt_dr = {
+      name = "sqlmi-route-table-dr"
+      location = data.azurerm_resource_group.rg_dr.location
+      resource_group_name = data.azurerm_resource_group.rg_dr.name
+    }
+  }
+}
+
 #--------------------------------------------------------------------
 # User Assigned Identity
 #--------------------------------------------------------------------
@@ -403,7 +422,7 @@ locals {
       diagnostic_settings = {
         di_diag = {
           name                  = "diag-di-sqlmi-01"
-          workspace_resource_id = try(module.law[0].resource_id, null)
+          workspace_resource_id = try(module.law.resource_id, null)
         }
       }
     }
@@ -439,7 +458,7 @@ locals {
       diagnostic_settings = {
         di_diag = {
           name                  = "diag-di-sql-mk-infy-01-dr"
-          workspace_resource_id = try(module.law[0].resource_id, null)
+          workspace_resource_id = try(module.law.resource_id, null)
         }
       }
     }
@@ -494,7 +513,7 @@ locals {
       diagnostic_settings = {
         di_diag = {
           name                  = "diag-aks-dr-001cd"
-          workspace_resource_id = try(module.law[0].resource_id, null)
+          workspace_resource_id = try(module.law.resource_id, null)
         }
       }
       tags = {
