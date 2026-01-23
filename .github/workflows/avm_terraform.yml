@@ -1,0 +1,169 @@
+
+name: avm_terraform-test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  actions: read
+  deployments: write
+
+jobs:
+  plan-test:
+    runs-on: ubuntu-latest
+    environment: test
+    env:
+      TF_WORKDIR: sqlmi
+
+    steps:
+      # checkout (already present)
+      - uses: actions/checkout@v4
+
+      - name: Verify TF_WORKDIR exists
+        run: |
+          test -d "${{ env.TF_WORKDIR }}" || { echo "ERROR: ${{ env.TF_WORKDIR }} not found"; exit 1; }
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.TEST_AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.TEST_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      # ADD: Setup TFLint
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      #ADD: TFLint init (downloads plugins/rules)
+      - name: TFLint init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: tflint --init
+
+      #ADD: Run TFLint (lint Terraform code)
+      - name: TFLint (recursive)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: tflint --recursive
+
+      - name: Terraform fmt
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform fmt -recursive
+
+      - name: Clean terraform cache
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          rm -rf .terraform
+          rm -f .terraform.lock.hcl
+
+      - name: Terraform init (AAD backend)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform init -input=false -upgrade \
+            -backend-config="resource_group_name=${{ secrets.TEST_TF_BACKEND_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TEST_TF_BACKEND_SA }}" \
+            -backend-config="container_name=${{ secrets.TEST_TF_BACKEND_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TEST_TF_BACKEND_KEY }}" \
+            -backend-config="use_azuread_auth=true"
+
+      # ADD: Setup Checkov
+      - name: Setup Checkov
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          skip_check: ""
+        continue-on-error: true
+
+      # ADD: Run Checkov
+      - name: Checkov scan (no fail)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          checkov -d . --quiet-exit-code --compact || true
+        continue-on-error: true
+
+      - name: Terraform validate
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform validate
+
+      - name: Debug environment variables
+        run: |
+          echo "Storage Account: $TF_WORKDIR"
+          echo "st1_account_name: ${{ secrets.ST1_ACCOUNT_NAME }}"
+          echo "cosmosdb1_account_name: ${{ secrets.COSMOSDB1_ACCOUNT_NAME }}"
+
+      - name: Terraform plan (test)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform plan -input=false -out=tfplan.bin -var "sqlmi_adminpass=${{ vars.SQLMI_ADMINPASS }}"
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-test
+          path: ${{ env.TF_WORKDIR }}/tfplan.bin
+
+  apply-test:
+    runs-on: ubuntu-latest
+    needs: [ plan-test ]
+    environment: test
+    env:
+      TF_WORKDIR: avm_terraform/avm
+
+    steps:
+      # checkout (already present)
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:       ${{ secrets.TEST_AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.TEST_AZURE_SUBSCRIPTION_ID }}
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      # ADD: Setup TFLint (optional in apply job)
+      - name: Setup TFLint
+        uses: terraform-linters/setup-tflint@v4
+
+      - name: TFLint init
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: tflint --init
+
+      - name: TFLint (recursive)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: tflint --recursive
+
+      - name: Terraform fmt
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform fmt -recursive
+
+      - name: Terraform init (AAD backend)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          terraform init -input=false \
+            -backend-config="resource_group_name=${{ secrets.TEST_TF_BACKEND_RG }}" \
+            -backend-config="storage_account_name=${{ secrets.TEST_TF_BACKEND_SA }}" \
+            -backend-config="container_name=${{ secrets.TEST_TF_BACKEND_CONTAINER }}" \
+            -backend-config="key=${{ secrets.TEST_TF_BACKEND_KEY }}" \
+            -backend-config="use_azuread_auth=true"
+
+      - name: Download plan artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan-test
+          path: ${{ env.TF_WORKDIR }}
+
+      - name: Verify plan exists
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: |
+          ls -la && test -f tfplan.bin || { echo "::error::tfplan.bin missing"; exit 1; }
+
+      - name: Terraform apply (test)
+        working-directory: ${{ env.TF_WORKDIR }}
+        run: terraform apply -auto-approve -input=false tfplan.bin -var "sqlmi_adminpass=${{ vars.SQLMI_ADMINPASS }}"

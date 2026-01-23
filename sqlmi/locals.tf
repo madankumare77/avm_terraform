@@ -16,7 +16,7 @@ locals {
           name           = "subnet-mi"
           address_prefix = ["10.0.1.0/24"]
           nsg_key        = "nsg_primary"
-          route_table   = { id = module.avm-res-network-routetable-primary.resource_id }
+          route_table   = { id = module.avm-res-network-routetable["rt_primary"].resource_id }
 
           delegation = {
             name = "managedinstancedelegation"
@@ -30,7 +30,12 @@ locals {
           name           = "subnet-pvt"
           address_prefix = ["10.0.2.0/24"]
           nsg_key        = "nsg_primary"
-          route_table   = { id = module.avm-res-network-routetable-primary.resource_id }
+          route_table   = { id = module.avm-res-network-routetable["rt_primary"].resource_id }
+        }
+        snet2 = {
+          name           = "subnet-aks"
+          address_prefix = ["10.0.3.0/24"]
+          nsg_key        = "nsg_primary"
         }
       }
     }
@@ -38,8 +43,7 @@ locals {
       create_vnet            = true
       parent_id             = data.azurerm_resource_group.rg_dr.id
       name                   = "vent-infy-is-dr"
-      #location               = data.azurerm_resource_group.rg_dr.location
-      location = "japaneast"
+      location               = data.azurerm_resource_group.rg_dr.location
       address_space          = ["10.1.0.0/16"]
       enable_ddos_protection = false
       dns_servers            = ["168.63.129.16"]
@@ -51,7 +55,7 @@ locals {
           name           = "subnet-mi"
           address_prefix = ["10.1.1.0/24"]
           nsg_key        = "nsg_dr"
-          route_table   = { id = module.avm-res-network-routetable.resource_id }
+          route_table   = { id = module.avm-res-network-routetable["rt_dr"].resource_id }
 
           delegation = {
             name = "managedinstancedelegation"
@@ -65,7 +69,7 @@ locals {
           name           = "subnet-pvt"
           address_prefix = ["10.1.2.0/24"]
           nsg_key        = "nsg_dr"
-          route_table   = { id = module.avm-res-network-routetable.resource_id }
+          route_table   = { id = module.avm-res-network-routetable["rt_dr"].resource_id }
         }
       }
     }
@@ -208,8 +212,7 @@ locals {
     nsg_dr = {
       create_nsg = true
       nsg_name   = "mi-security-group-dr"
-      #location   = data.azurerm_resource_group.rg_dr.location
-      location = "japaneast"
+      location   = data.azurerm_resource_group.rg_dr.location
       rg_name    = data.azurerm_resource_group.rg_dr.name
 
       security_rules = [
@@ -348,14 +351,27 @@ locals {
     }
     secondary = {
       name                = "mi-sqlmi-identity-dr"
-      # location            = data.azurerm_resource_group.rg_dr.location
-      location = "japaneast"
+      location            = data.azurerm_resource_group.rg_dr.location
       resource_group_name = data.azurerm_resource_group.rg_dr.name
     }
-
+    aks = {
+      name                = "mi-aks-identity"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+    }
   }
 }
 
+
+variable "sqlmi_adminpass" {
+  description = "Admin password for the primary SQL Managed Instance"
+  type        = string
+  sensitive   = true
+  validation {
+    condition  = length(var.sqlmi_adminpass) >= 16 && can(regex("[A-Z]", var.sqlmi_adminpass)) && can(regex("[a-z]", var.sqlmi_adminpass)) && can(regex("[0-9]", var.sqlmi_adminpass)) && can(regex("[^A-Za-z0-9]", var.sqlmi_adminpass))
+    error_message = "admin password must be at least 16 characters long and include at least one uppercase letter, one lowercase letter, one number, and one special character."
+  }
+}
 locals {
   sqlmi-configs = {
     sqlmi_primary = {
@@ -364,7 +380,7 @@ locals {
       resource_group_name = data.azurerm_resource_group.rg.name
       subnet_id = local.subnet_ids["vnet-primary.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
       administrator_login          = "sqladminuser"
-      administrator_login_password = random_password.myadminpassword.result
+      administrator_login_password = var.sqlmi_adminpass
       sku_name                     = "GP_Gen5"
       vcores                       = 4
       storage_size_in_gb           = 128
@@ -372,15 +388,9 @@ locals {
       timezone_id                  = "India Standard Time"
       proxy_override               = "Proxy"
       public_data_endpoint_enabled = false
-      minimum_tls_version          = "1.2" #TLS 1.2 is the minimum supported version
+      minimum_tls_version          = "1.2"
       zone_redundant_enabled       = false
       user_assigned_identity_keys  = ["sqlmi"]
-      # active_directory_administrator = {
-      #   azuread_authentication_only = true
-      #   object_id                   = data.azuread_group.sql_admins.object_id
-      #   tenant_id                   = data.azurerm_client_config.current.tenant_id
-      #   login_username              = "infy-test"
-      # }
       private_endpoints_manage_dns_zone_group = true
       private_endpoints = {
         sqlmipe = {
@@ -388,7 +398,6 @@ locals {
           vnet_key                      = "vnet-primary"
           subnet_key                    = "snet1"
           subresource_name              = "managedInstance"
-          #private_dns_zone_resource_ids = [local.private_dns_ids["cosmosdb"]]
         }
       }
       diagnostic_settings = {
@@ -402,12 +411,11 @@ locals {
   sqlmi-configs-secondary = {
     sqlmi_dr = {
       name                = "sql-mk-infy-01-dr"
-      #location            = data.azurerm_resource_group.rg_dr.location
-      location = "japaneast"
+      location            = data.azurerm_resource_group.rg_dr.location
       resource_group_name = data.azurerm_resource_group.rg_dr.name
       subnet_id = local.subnet_ids["vnet-dr.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
       administrator_login          = "sqladminuser"
-      administrator_login_password = random_password.myadminpassword.result
+      administrator_login_password = var.sqlmi_adminpass
       sku_name                     = "GP_Gen5"
       vcores                       = 4
       storage_size_in_gb           = 128
@@ -415,7 +423,7 @@ locals {
       timezone_id                  = "India Standard Time"
       proxy_override               = "Proxy"
       public_data_endpoint_enabled = false
-      minimum_tls_version          = "1.2" #TLS 1.2 is the minimum supported version
+      minimum_tls_version          = "1.2"
       zone_redundant_enabled       = false
       user_assigned_identity_keys  = ["secondary"]
       private_endpoints_manage_dns_zone_group = true
@@ -426,7 +434,6 @@ locals {
           vnet_key                      = "vnet-dr"
           subnet_key                    = "snet1"
           subresource_name              = "managedInstance"
-          #private_dns_zone_resource_ids = [local.private_dns_ids["cosmosdb"]]
         }
       }
       diagnostic_settings = {
@@ -439,6 +446,65 @@ locals {
   }
 }
 
+
+#--------------------------------------------------------------------
+# #AKS configurations
+#--------------------------------------------------------------------
+locals {
+  aks_configs = {
+    aks_dr = {
+      name = "aks-dr-001"
+      resource_group_name = data.azurerm_resource_group.rg.name
+      location = data.azurerm_resource_group.rg.location
+      kubernetes_version         = "1.34.1"
+      sku_tier                   = "Free"
+      oidc_issuer_enabled        = true
+      workload_identity_enabled  = true
+      azure_policy_enabled       = true
+      dns_prefix = "aks-dr-001"
+      local_account_disabled = false
+      role_based_access_control_enabled = false
+      user_assigned_identity_keys                    = ["aks"]
+      default_node_pool = {
+        name            = "systemnp"
+        vm_size         = "standard_b2ms"
+        os_disk_size_gb = 128
+        os_disk_type    = "Managed"
+        zones           = ["1", "2", "3"]
+        min_count            = 3
+        type                 = "VirtualMachineScaleSets"
+        max_count            = 5
+        auto_scaling_enabled = true
+        max_pods             = 110
+        vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
+        node_labels = {
+          "nodepool-type" = "system"
+        }
+      }
+      network_profile = {
+        network_plugin      = "azure" 
+        network_policy      = "azure" 
+        ebpf_data_plane     = "cilium"  
+        network_plugin_mode = "overlay"
+        dns_service_ip      = "10.3.0.10"
+        service_cidr        = "10.3.0.0/24"
+        outbound_type     = "loadBalancer"
+        load_balancer_sku = "standard"
+      }
+      diagnostic_settings = {
+        di_diag = {
+          name                  = "diag-aks-dr-001cd"
+          workspace_resource_id = try(module.law[0].resource_id, null)
+        }
+      }
+      tags = {
+        environment = "testing"
+        created_by  = "terraform"
+      }
+
+    }
+  }
+}
 
 
 
@@ -508,7 +574,7 @@ locals {
     if !try(v.create_nsg, true)
   }
 
-  # 2) Convert rules list -> map keyed by rule name (module requires map(object(...))) [1](https://github.com/Azure/terraform-azurerm-avm-res-network-networksecuritygroup)
+  # 2) Convert rules list -> map keyed by rule name
   nsg_security_rules = {
     for nsg_key, nsg in local.nsg_create : nsg_key => {
       for r in try(nsg.security_rules, []) : r.name => {
@@ -525,8 +591,6 @@ locals {
 
         source_port_range      = try(r.source_port_range, null)
         destination_port_range = try(r.destination_port_range, null)
-
-        # If in future you use *ranges*, module supports these too [1](https://github.com/Azure/terraform-azurerm-avm-res-network-networksecuritygroup)
         source_address_prefixes      = try(r.source_address_prefixes, null)
         destination_address_prefixes = try(r.destination_address_prefixes, null)
         source_port_ranges           = try(r.source_port_ranges, null)
