@@ -190,6 +190,12 @@ locals {
         outbound_type     = "loadBalancer"
         load_balancer_sku = "standard"
       }
+      service_mesh_profile = {
+        mode = "Istio"
+        revisions = ["asm-1-27"]
+        external_ingress_gateway_enabled = true
+        internal_ingress_gateway_enabled = true
+      }
       # diagnostic_settings = {
       #   di_diag = {
       #     name                  = "diag-aks-dr-001cd"

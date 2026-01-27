@@ -455,6 +455,17 @@ module "avm-res-containerservice-managedcluster" {
     }
     : null
   )
+  open_service_mesh_enabled = false
+  service_mesh_profile = (
+    try(each.value.service_mesh_profile, null) == null
+    ? null
+    : { 
+        mode = each.value.service_mesh_profile.mode
+        revisions = each.value.service_mesh_profile.revisions
+        external_ingress_gateway_enabled = each.value.service_mesh_profile.external_ingress_gateway_enabled
+        internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
+     }
+  )
 
   tags = (
     try(each.value.tags, null) == null
