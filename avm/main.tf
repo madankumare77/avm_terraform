@@ -149,6 +149,7 @@ module "keyvault" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
+  depends_on = [module.law]
 
 }
 
@@ -261,7 +262,7 @@ module "avm-res-storage-storageaccount" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
-
+  depends_on = [module.law]
 }
 
 #--------------------------------------------------------------------
@@ -473,6 +474,7 @@ module "avm-res-cognitiveservices-account" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
+  depends_on = [module.law]
 }
 #--------------------------------------------------------------------
 # Cosmos DB Account configuration
@@ -521,21 +523,6 @@ module "avm-res-documentdb-databaseaccount" {
     }
   }
 
-  # # Always pass the private_endpoints map, even if empty, so keys are statically known
-  # private_endpoints = (
-  #   try(each.value.private_endpoints, null) == null
-  #   ? {}
-  #   : {
-  #     for pe_key, pe in each.value.private_endpoints : pe_key => {
-  #       name                          = try(pe.name, null)
-  #       subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
-  #       subresource_name              = pe.subresource_name
-  #       private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
-  #       tags                          = try(pe.tags, null)
-  #     }
-  #   }
-  # )
-
   diagnostic_settings = (
     contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
     ? {
@@ -558,6 +545,7 @@ module "avm-res-documentdb-databaseaccount" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
+  depends_on = [module.law]
 }
 
 #--------------------------------------------------------------------

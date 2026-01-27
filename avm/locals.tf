@@ -88,7 +88,7 @@ locals {
       location            = "centralindia"
       resource_group_name = data.azurerm_resource_group.rg.name
 
-      soft_delete_retention_days      = 7
+      soft_delete_retention_days      = 90
       purge_protection_enabled        = true
       legacy_access_policies_enabled  = false
       enabled_for_deployment          = true
@@ -149,7 +149,7 @@ locals {
       min_tls_version                   = "TLS1_2"
       public_network_access_enabled     = false
       sftp_enabled                      = false
-      shared_access_key_enabled         = false
+      shared_access_key_enabled         = true
       enable_telemetry                  = false
       blob_properties = {
         versioning_enabled            = true
