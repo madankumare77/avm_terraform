@@ -84,10 +84,10 @@ locals {
 locals {
   keyvault_configs = {
     kv2 = {
-      name                = "kv-test-infy-001"
+      name                = "kv-test-infy-111"
       location            = "centralindia"
       resource_group_name = data.azurerm_resource_group.rg.name
-
+      sku_name           = "standard"
       soft_delete_retention_days      = 90
       purge_protection_enabled        = true
       legacy_access_policies_enabled  = false
@@ -162,11 +162,6 @@ locals {
           permanent_delete_enabled = true
         }
       }
-      # immutability_policy = {
-      #   allow_protected_append_writes = false
-      #   period_since_creation_in_days = 30
-      #   state                        = "Unlocked"
-      # }
       network_rules_subnet_refs = [
         {
           vnet_key   = "vnet1"
@@ -179,7 +174,6 @@ locals {
           vnet_key                      = "vnet1"
           subnet_key                    = "snet2"
           subresource_name              = "blob"
-          #private_dns_zone_resource_ids = [local.private_dns_ids["storage"]]
           tags                          = { env = "test" }
         }
       }
@@ -473,7 +467,7 @@ locals {
     cosmosdb = {
       create_private_dns_zone = true
       private_dns_zone_name = "privatelink.mongo.cosmos.azure.com"
-      vnet_id               = local.vnet_ids["vnet1"]
+      vnet_id               = try(local.vnet_ids["vnet1"], null)
     }
     storage = {
       create_private_dns_zone = false

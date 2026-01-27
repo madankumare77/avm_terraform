@@ -247,7 +247,7 @@ locals {
       name                = "kv-name"
       location            = "centralindia"
       resource_group_name = data.azurerm_resource_group.rg.name
-
+      sku_name           = "standard"
       soft_delete_retention_days      = 7
       purge_protection_enabled        = false
       legacy_access_policies_enabled  = false

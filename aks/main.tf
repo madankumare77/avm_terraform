@@ -322,6 +322,8 @@ module "avm-res-containerservice-managedcluster" {
   oidc_issuer_enabled        = each.value.oidc_issuer_enabled
   workload_identity_enabled  = each.value.workload_identity_enabled
   azure_policy_enabled       = each.value.azure_policy_enabled
+
+  #private_cluster_enabled    = false
   #dns_prefix_private_cluster = "dr-aks-03"
   #private_dns_zone_id        = local.private_dns_ids["aks"] 
   dns_prefix = each.value.dns_prefix

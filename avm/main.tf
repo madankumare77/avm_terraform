@@ -1,7 +1,7 @@
 
 
 data "azurerm_resource_group" "rg" {
-  name = "madan-test"
+  name = "rg-infosys-is"  #"madan-test"
 }
 #--------------------------------------------------------------------
 # Virtual Network and Subnet
@@ -105,6 +105,7 @@ module "keyvault" {
   location                        = each.value.location
   resource_group_name             = each.value.resource_group_name
   tenant_id                       = data.azurerm_client_config.current.tenant_id
+  sku_name                        = each.value.sku_name
   soft_delete_retention_days      = each.value.soft_delete_retention_days
   purge_protection_enabled        = each.value.purge_protection_enabled
   legacy_access_policies_enabled  = each.value.legacy_access_policies_enabled
@@ -153,7 +154,9 @@ module "keyvault" {
 
 }
 
-
+#--------------------------------------------------------------------
+# Log Analytics Workspace
+#--------------------------------------------------------------------
 module "law" {
   source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
   count                                     = var.enable_log_analytics_workspace ? 1 : 0
