@@ -1,3 +1,29 @@
+### Peniding Items: AKS:
+1. AKS private cluster\
+  - To fully disable public access to the AKS API server, you must run the cluster as a Private Cluster. In Terraform (and with the AVM module you’re using), that means:
+  -  Enable private cluster: private_cluster_enabled = true
+  -  Provide a Private DNS zone: dns_prefix_private_cluster
+  - local_account_disabled (otional: disables AKS local admin)
+
+2. Authentication and Authorization to be enabled Microsoft entra ID authentication with kubernetes RBAC
+  - role_based_access_control_enabled true
+  - azure_active_directory_role_based_access_control must be configured  
+  - local_account_disabledrecommended true (disables AKS local admin)
+  - azure_rbac_enabledtrue (uses ARM‑based RBAC & K8s RBAC)
+  - to import admin_group_object_ids assigning the built‑in `Directory Readers` role in Microsoft Entra ID at tenant scope to that principal.
+  data "azuread_group" "sql_admins" {
+  display_name   = "infy-test"
+  security_enabled = true
+  }
+  built‑in Directory Readers role in Microsoft Entra ID at tenant scope to that principal
+
+### Peniding Items: SQLMI:
+1. active_directory_administrator to enable two things can taken care
+   1. Use Microsoft Entra-only authentication - Password not required
+   2. Use both SQL and Microsoft Entra authentication - Password required
+  - Both required azuread_group object ID
+
+
 # SQL Managed instance
 1. Rquired vnet, delegated subnet, nsg with dedicated nsg rules, route table
 2. 
@@ -220,6 +246,12 @@ locals {
 
 2. dns_prefix_private_cluster = "The Private Cluster DNS prefix specified when creating a private cluster. Required if deploying private cluster and providing a private dns zone id(private_dns_zone_id)."
 
+3. command to check support revisions 'az aks mesh get-revisions --location centralindia'.
+
+4. To fully disable public access to the AKS API server, you must run the cluster as a Private Cluster. In Terraform (and with the AVM module you’re using), that means:
+  -  Enable private cluster
+  -  Provide a Private DNS zone for the API server (system‑managed or your own)
+
 
 locals {
   aks_configs = {
@@ -309,6 +341,7 @@ data "azuread_group" "sql_admins" {
   display_name   = "infy-test"
   security_enabled = true
 }
+built‑in Directory Readers role in Microsoft Entra ID at tenant scope to that principal
 
 
 ###############################################################
