@@ -83,8 +83,8 @@ locals {
 #--------------------------------------------------------------------
 locals {
   keyvault_configs = {
-    kv2 = {
-      name                = "kv-test-infy-111"
+    kv = {
+      name                = "kv-test-infy-110"
       location            = "centralindia"
       resource_group_name = data.azurerm_resource_group.rg.name
       sku_name           = "standard"
@@ -263,7 +263,7 @@ locals {
       enable_telemetry              = false
       public_network_access_enabled = false
       application_insights_key      = "app_insights1"
-      key_vault_key                 = "kv2"
+      key_vault_key                 = "kv"
       storage_account_key           = "st1"
       workspace_managed_network = {
         isolation_mode = "AllowOnlyApprovedOutbound"
