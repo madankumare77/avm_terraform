@@ -6,6 +6,11 @@ data "azurerm_resource_group" "rg_dr" {
   name = "rg-infosys-is-dr"
 }
 
+  data "azuread_group" "ad_group" {
+  display_name   = "infy-test"
+  security_enabled = true
+  }
+
 #--------------------------------------------------------------------
 # Virtual Network and Subnet
 #--------------------------------------------------------------------
@@ -153,14 +158,16 @@ module "sqlmi_primary" {
     ])
   }
 
-  active_directory_administrator = {
-    for k, v in try(each.value.active_directory_administrator, {}) : k => {
-      azuread_authentication_only = v.azuread_authentication_only
-      object_id                   = v.object_id
-      tenant_id                   = v.tenant_id
-      login_username              = v.login_username
-    }
-  }
+  active_directory_administrator = (
+    try(each.value.active_directory_administrator, null) == null
+    ? null
+    : {
+        azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
+        object_id                   = each.value.active_directory_administrator.object_id
+        tenant_id                   = each.value.active_directory_administrator.tenant_id
+        login_username              = each.value.active_directory_administrator.login_username
+      }
+  )
 
   private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
   private_endpoints = {
@@ -222,14 +229,16 @@ module "sqlmi_secondary" {
     ])
   }
 
-  active_directory_administrator = {
-    for k, v in try(each.value.active_directory_administrator, {}) : k => {
-      azuread_authentication_only = v.azuread_authentication_only
-      object_id                   = v.object_id
-      tenant_id                   = v.tenant_id
-      login_username              = v.login_username
-    }
-  }
+  active_directory_administrator = (
+    try(each.value.active_directory_administrator, null) == null
+    ? null
+    : {
+        azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
+        object_id                   = each.value.active_directory_administrator.object_id
+        tenant_id                   = each.value.active_directory_administrator.tenant_id
+        login_username              = each.value.active_directory_administrator.login_username
+      }
+  )
 
   private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
   private_endpoints = {
@@ -323,18 +332,24 @@ module "avm-res-containerservice-managedcluster" {
   workload_identity_enabled  = each.value.workload_identity_enabled
   azure_policy_enabled       = each.value.azure_policy_enabled
 
-  #private_cluster_enabled    = false
+  private_cluster_enabled    = true                    # force replacement of the cluster if changed
   #dns_prefix_private_cluster = "dr-aks-03"
   #private_dns_zone_id        = local.private_dns_ids["aks"] 
   dns_prefix = each.value.dns_prefix
 
   local_account_disabled = each.value.local_account_disabled
   role_based_access_control_enabled = each.value.role_based_access_control_enabled #Enabling Azure Active Directory integration requires that `role_based_access_control_enabled` be set to true."
-  # azure_active_directory_role_based_access_control = {
-  #   tenant_id = data.azurerm_client_config.current.tenant_id
-  #   admin_group_object_ids = []  #["<AAD-Group-Object-ID>"]
-  #   azure_rbac_enabled = true
-  # }
+  
+  azure_active_directory_role_based_access_control = (
+    each.value.role_based_access_control_enabled
+    ? {
+        tenant_id = data.azurerm_client_config.current.tenant_id
+        admin_group_object_ids = each.value.azure_active_directory_role_based_access_control.admin_group_object_ids
+        azure_rbac_enabled = each.value.azure_active_directory_role_based_access_control.azure_rbac_enabled
+      }
+    : null
+  )
+  
 
   network_profile = {
     network_plugin      = each.value.network_profile.network_plugin      # "azure" (CNI) or "kubenet"

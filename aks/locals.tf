@@ -17,6 +17,26 @@ locals {
           address_prefix = ["10.0.3.0/24"]
           #nsg_key        = "nsg_primary"
         }
+        snetmi = {
+          name           = "subnet-mi"
+          address_prefix = ["10.0.1.0/24"]
+          nsg_key        = "nsg_primary"
+          route_table   = { id = module.avm-res-network-routetable["rt_primary"].resource_id }
+
+          delegation = {
+            name = "managedinstancedelegation"
+            service_delegation = {
+              name    = "Microsoft.Sql/managedInstances"
+              actions = ["Microsoft.Network/virtualNetworks/subnets/join/action", "Microsoft.Network/virtualNetworks/subnets/prepareNetworkPolicies/action", "Microsoft.Network/virtualNetworks/subnets/unprepareNetworkPolicies/action"]
+            }
+          }
+        }
+        snet1 = {
+          name           = "subnet-pvt"
+          address_prefix = ["10.0.2.0/24"]
+          nsg_key        = "nsg_primary"
+          route_table   = { id = module.avm-res-network-routetable["rt_primary"].resource_id }
+        }
       }
     }
   }
@@ -27,6 +47,134 @@ locals {
 #--------------------------------------------------------------------
 locals {
   nsg_configs = {
+    nsg_primary = {
+      create_nsg = true
+      nsg_name   = "mi-security-group-primary"
+      location   = data.azurerm_resource_group.rg.location
+      rg_name    = data.azurerm_resource_group.rg.name
+
+      security_rules = [
+        # Management ports
+        {
+          name                       = "allow_management_inbound"
+          priority                   = 410
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_ranges    = ["9000", "9003", "1438", "1440", "1452"]
+        },
+        # Health probe
+        {
+          name                       = "allow_health_probe_inbound"
+          priority                   = 200
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "*"
+          source_address_prefix      = "AzureLoadBalancer"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_range     = "*"
+        },
+        # TDS (SQL client)
+        {
+          name                       = "allow_tds_inbound"
+          priority                   = 300
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_range     = "1433"
+        },
+        # Replication ports from DR
+        {
+          name                       = "allow_replication_inbound_5022"
+          priority                   = 400
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_address_prefix      = "10.1.0.0/16"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_range     = "5022"
+        },
+        {
+          name                       = "allow_replication_inbound_range"
+          priority                   = 401
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_address_prefix      = "10.1.0.0/16"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_ranges    = ["11000-11999"]
+        },
+        # Outbound rules
+        {
+          name                       = "allow_management_outbound"
+          priority                   = 106
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_ranges    = ["80", "443", "12000"]
+        },
+        {
+          name                       = "allow_replication_outbound_5022"
+          priority                   = 200
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_address_prefix      = "*"
+          destination_address_prefix = "10.1.0.0/16"
+          source_port_range          = "*"
+          destination_port_range     = "5022"
+        },
+        {
+          name                       = "allow_replication_outbound_range"
+          priority                   = 201
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_address_prefix      = "*"
+          destination_address_prefix = "10.1.0.0/16"
+          source_port_range          = "*"
+          destination_port_ranges    = ["11000-11999"]
+        },
+        # Deny all
+        {
+          name                       = "deny_all_inbound"
+          priority                   = 4096
+          direction                  = "Inbound"
+          access                     = "Deny"
+          protocol                   = "*"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_range     = "*"
+        },
+        {
+          name                       = "deny_all_outbound"
+          priority                   = 4096
+          direction                  = "Outbound"
+          access                     = "Deny"
+          protocol                   = "*"
+          source_address_prefix      = "*"
+          destination_address_prefix = "*"
+          source_port_range          = "*"
+          destination_port_range     = "*"
+        }
+      ]
+      tags = {
+        created_by = "terraform"
+      }
+    }
   }
 }
 
@@ -35,6 +183,11 @@ locals {
 #--------------------------------------------------------------------
 locals {
   route_table_configs = {
+    rt_primary = {
+      name = "sqlmi-route-table-primary"
+      location = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+    }
   }
 }
 
@@ -43,11 +196,11 @@ locals {
 #--------------------------------------------------------------------
 locals {
   user_assigned_identities = {
-    # sqlmi = {
-    #   name                = "mi-sqlmi-identity"
-    #   location            = data.azurerm_resource_group.rg.location
-    #   resource_group_name = data.azurerm_resource_group.rg.name
-    # }
+    sqlmi = {
+      name                = "mi-sqlmi-identity"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+    }
     # secondary = {
     #   name                = "mi-sqlmi-identity-dr"
     #   location            = data.azurerm_resource_group.rg_dr.location
@@ -73,39 +226,45 @@ locals {
 # }
 locals {
   sqlmi-configs = {
-    # sqlmi_primary = {
-    #   name                = "sql-mk-primary-01"
-    #   location            = data.azurerm_resource_group.rg.location
-    #   resource_group_name = data.azurerm_resource_group.rg.name
-    #   subnet_id = local.subnet_ids["vnet-primary.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
-    #   administrator_login          = "sqladminuser"
-    #   administrator_login_password = var.sqlmi_adminpass
-    #   sku_name                     = "GP_Gen5"
-    #   vcores                       = 4
-    #   storage_size_in_gb           = 128
-    #   license_type                 = "LicenseIncluded"
-    #   timezone_id                  = "India Standard Time"
-    #   proxy_override               = "Proxy"
-    #   public_data_endpoint_enabled = false
-    #   minimum_tls_version          = "1.2"
-    #   zone_redundant_enabled       = false
-    #   user_assigned_identity_keys  = ["sqlmi"]
-    #   private_endpoints_manage_dns_zone_group = true
-    #   private_endpoints = {
-    #     sqlmipe = {
-    #       name                          = "pvt-endpoint-sqlmi001"
-    #       vnet_key                      = "vnet-primary"
-    #       subnet_key                    = "snet1"
-    #       subresource_name              = "managedInstance"
-    #     }
-    #   }
-    #   diagnostic_settings = {
-    #     di_diag = {
-    #       name                  = "diag-di-sqlmi-01"
-    #       workspace_resource_id = try(module.law.resource_id, null)
-    #     }
-    #   }
-    # }
+    sqlmi_primary = {
+      name                = "sql-mk-primary-02"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      subnet_id = local.subnet_ids["vnet-primary.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
+      administrator_login          = "sqladminuser"
+      administrator_login_password = "Cricket@#12345678"  #var.sqlmi_adminpass
+      sku_name                     = "GP_Gen5"
+      vcores                       = 4
+      storage_size_in_gb           = 128
+      license_type                 = "LicenseIncluded"
+      timezone_id                  = "India Standard Time"
+      proxy_override               = "Proxy"
+      public_data_endpoint_enabled = false
+      minimum_tls_version          = "1.2"
+      zone_redundant_enabled       = false
+      user_assigned_identity_keys  = ["sqlmi"]
+      private_endpoints_manage_dns_zone_group = true
+      active_directory_administrator = {
+        azuread_authentication_only = true
+        object_id                   = data.azuread_group.ad_group.object_id
+        tenant_id                   = data.azurerm_client_config.current.tenant_id
+        login_username              = "infy-test"
+      }
+      private_endpoints = {
+        sqlmipe = {
+          name                          = "pvt-endpoint-sqlmi001"
+          vnet_key                      = "vnet-primary"
+          subnet_key                    = "snet1"
+          subresource_name              = "managedInstance"
+        }
+      }
+      # diagnostic_settings = {
+      #   di_diag = {
+      #     name                  = "diag-di-sqlmi-01"
+      #     workspace_resource_id = try(module.law.resource_id, null)
+      #   }
+      # }
+    }
   }
   sqlmi-configs-secondary = {
     # sqlmi_dr = {
@@ -152,7 +311,7 @@ locals {
 locals {
   aks_configs = {
     aks_dr = {
-      name = "aks-dr-001"
+      name = "aks-dr-002"
       resource_group_name = data.azurerm_resource_group.rg.name
       location = data.azurerm_resource_group.rg.location
       kubernetes_version         = "1.34.1"
@@ -161,9 +320,14 @@ locals {
       workload_identity_enabled  = true
       azure_policy_enabled       = true
       dns_prefix = "aks-dr-001"
-      local_account_disabled = false
-      role_based_access_control_enabled = false
+      local_account_disabled = true
       user_assigned_identity_keys                    = ["aks"]
+      role_based_access_control_enabled = true                      # force replacement of the cluster if changed
+      azure_active_directory_role_based_access_control = {
+        tenant_id = data.azurerm_client_config.current.tenant_id
+        admin_group_object_ids = [data.azuread_group.ad_group.object_id]
+        azure_rbac_enabled = true
+      }
       default_node_pool = {
         name            = "systemnp"
         vm_size         = "standard_b2ms"

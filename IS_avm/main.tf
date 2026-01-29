@@ -6,6 +6,11 @@ data "azurerm_resource_group" "rg_dr" {
   name = "rg-infosys-is-dr"
 }
 
+# data "azurerm_mssql_managed_instance" "example" {
+#   name                = "sql-mk-primary-02"
+#   resource_group_name = data.azurerm_resource_group.rg.name
+# }
+
 module "law" {
   source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
   version                                   = "0.4.2"
@@ -167,14 +172,16 @@ module "sqlmi_primary" {
     ])
   }
 
-  active_directory_administrator = {
-    for k, v in try(each.value.active_directory_administrator, {}) : k => {
-      azuread_authentication_only = v.azuread_authentication_only
-      object_id                   = v.object_id
-      tenant_id                   = v.tenant_id
-      login_username              = v.login_username
-    }
-  }
+  active_directory_administrator = (
+    try(each.value.active_directory_administrator, null) == null
+    ? null
+    : {
+        azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
+        object_id                   = each.value.active_directory_administrator.object_id
+        tenant_id                   = each.value.active_directory_administrator.tenant_id
+        login_username              = each.value.active_directory_administrator.login_username
+      }
+  )
 
   private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
   private_endpoints = {
@@ -236,14 +243,16 @@ module "sqlmi_secondary" {
     ])
   }
 
-  active_directory_administrator = {
-    for k, v in try(each.value.active_directory_administrator, {}) : k => {
-      azuread_authentication_only = v.azuread_authentication_only
-      object_id                   = v.object_id
-      tenant_id                   = v.tenant_id
-      login_username              = v.login_username
-    }
-  }
+  active_directory_administrator = (
+    try(each.value.active_directory_administrator, null) == null
+    ? null
+    : {
+        azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
+        object_id                   = each.value.active_directory_administrator.object_id
+        tenant_id                   = each.value.active_directory_administrator.tenant_id
+        login_username              = each.value.active_directory_administrator.login_username
+      }
+  )
 
   private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
   private_endpoints = {
@@ -279,7 +288,7 @@ module "sqlmi_secondary" {
 resource "azurerm_virtual_network_peering" "primary_to_dr" {
   name                      = "peer-primary-to-dr"
   resource_group_name       = data.azurerm_resource_group.rg.name
-  virtual_network_name      = module.avm_res_network_virtualnetwork["vnet-primary"].name
+  virtual_network_name      = module.avm_res_network_virtualnetwork["vnet-primary"].name     #data.azurerm_virtual_network.existing["vnet1_manual"].name
   remote_virtual_network_id = module.avm_res_network_virtualnetwork["vnet-dr"].resource_id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
@@ -291,7 +300,7 @@ resource "azurerm_virtual_network_peering" "dr_to_primary" {
   name                      = "peer-dr-to-primary"
   resource_group_name       = data.azurerm_resource_group.rg_dr.name
   virtual_network_name      = module.avm_res_network_virtualnetwork["vnet-dr"].name
-  remote_virtual_network_id = module.avm_res_network_virtualnetwork["vnet-primary"].resource_id
+  remote_virtual_network_id = module.avm_res_network_virtualnetwork["vnet-primary"].resource_id  #data.azurerm_virtual_network.existing["vnet1_manual"].id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
   use_remote_gateways          = false
@@ -302,7 +311,7 @@ resource "azurerm_virtual_network_peering" "dr_to_primary" {
 resource "azurerm_mssql_managed_instance_failover_group" "example" {
   name                        = "sqlmi-infy-failover-group"
   location                    = data.azurerm_resource_group.rg.location
-  managed_instance_id         = module.sqlmi_primary["sqlmi_primary"].resource_id
+  managed_instance_id         = module.sqlmi_primary["sqlmi_primary"].resource_id    #data.azurerm_mssql_managed_instance.example.id
   partner_managed_instance_id = module.sqlmi_secondary["sqlmi_dr"].resource_id
   secondary_type              = "Geo"
   read_write_endpoint_failover_policy {

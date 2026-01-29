@@ -11,7 +11,7 @@
   - local_account_disabledrecommended true (disables AKS local admin)
   - azure_rbac_enabledtrue (uses ARM‑based RBAC & K8s RBAC)
   - to import admin_group_object_ids assigning the built‑in `Directory Readers` role in Microsoft Entra ID at tenant scope to that principal.
-  data "azuread_group" "sql_admins" {
+  data "azuread_group" "ad_group" {
   display_name   = "infy-test"
   security_enabled = true
   }
@@ -23,7 +23,7 @@
 1. active_directory_administrator to enable two things can taken care
    1. Use Microsoft Entra-only authentication - Password not required
    2. Use both SQL and Microsoft Entra authentication - Password required
-  - Both required azuread_group object ID
+  - Both required azuread_group object ID: to add azuread_group required `Directory Readers` role to the sp and managed identity of the sqlmi
 
 # SQL Managed instance
 1. Rquired vnet, delegated subnet, nsg with dedicated nsg rules, route table
@@ -188,6 +188,12 @@ locals {
 
 # - 'sqlmi-configs'
 
+1. Below is the data block is used to import the sqlmi primary instance.
+data "azurerm_mssql_managed_instance" "example" {
+  name                = "sql-mk-primary-02"
+  resource_group_name = data.azurerm_resource_group.rg.name
+}
+
 locals {
   sqlmi-configs = {
     sqlmi_primary = {
@@ -209,7 +215,7 @@ locals {
       user_assigned_identity_keys  = ["sqlmi"]
       # active_directory_administrator = {
       #   azuread_authentication_only = true
-      #   object_id                   = data.azuread_group.sql_admins.object_id
+      #   object_id                   = data.azuread_group.ad_group.object_id
       #   tenant_id                   = data.azurerm_client_config.current.tenant_id
       #   login_username              = "infy-test"
       # }
@@ -338,7 +344,7 @@ locals {
 }
 
 
-data "azuread_group" "sql_admins" {
+data "azuread_group" "ad_group" {
   display_name   = "infy-test"
   security_enabled = true
 }
