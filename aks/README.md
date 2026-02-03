@@ -262,8 +262,8 @@ locals {
 
 locals {
   aks_configs = {
-    aks_dr = {
-      name = "aks-dr-001"
+    aks = {
+      name = "aks-dr-003"
       resource_group_name = data.azurerm_resource_group.rg.name
       location = data.azurerm_resource_group.rg.location
       kubernetes_version         = "1.34.1"
@@ -273,14 +273,20 @@ locals {
       azure_policy_enabled       = true
       dns_prefix = "aks-dr-001"
       local_account_disabled = false
-      role_based_access_control_enabled = false
       user_assigned_identity_keys                    = ["aks"]
+      private_cluster_enabled    = false                   # force replacement of the cluster if changed
+      role_based_access_control_enabled = true                      # force replacement of the cluster if changed
+      azure_active_directory_role_based_access_control = {
+        tenant_id = data.azurerm_client_config.current.tenant_id
+        admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
+        azure_rbac_enabled = true
+      }
       default_node_pool = {
         name            = "systemnp"
         vm_size         = "standard_b2ms"
         os_disk_size_gb = 128
         os_disk_type    = "Managed"
-        #zones           = ["1", "2", "3"]
+        zones           = ["1", "2", "3"]
         min_count            = 3
         type                 = "VirtualMachineScaleSets"
         max_count            = 5
@@ -299,23 +305,23 @@ locals {
           min_count            = 2
           max_count            = 10
           auto_scaling_enabled = true
-          vnet_subnet_id       = data.azurerm_subnet.existing["vnet-primary:snet2"].id
+          vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
           os_sku               = "Ubuntu"
           os_type              = "Linux"
           os_disk_size_gb      = 128
           os_disk_type         = "Managed"
           max_pods             = 110
           node_labels = {
-            "workload" = "apps"
+           "workload" = "apps"
           }
-          node_taints          = ["infysvc=true:NoSchedule"]
+          node_taints          = ["node=infysvc:NoSchedule"]
           zones                = ["1", "2", "3"]
         }
       }
       network_profile = {
-        network_plugin      = "azure"          # "azure" (CNI) or "kubenet"
-        network_policy      = "azure"          # "azure" | "calico" (depends on plugin/region)
-        ebpf_data_plane     = "cilium"         # "cilium" (preview in some regions) or null
+        network_plugin      = "azure" 
+        network_policy      = "azure" 
+        ebpf_data_plane     = "cilium"  
         network_plugin_mode = "overlay"
         dns_service_ip      = "10.3.0.10"
         service_cidr        = "10.3.0.0/24"
@@ -331,14 +337,13 @@ locals {
       diagnostic_settings = {
         di_diag = {
           name                  = "diag-aks-dr-001cd"
-          workspace_resource_id = try(module.law[0].resource_id, null)
+          workspace_resource_id = try(module.law.resource_id, null)
         }
       }
       tags = {
         environment = "testing"
         created_by  = "terraform"
       }
-
     }
   }
 }

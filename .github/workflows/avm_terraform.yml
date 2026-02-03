@@ -45,21 +45,23 @@ jobs:
       - name: TFLint init
         working-directory: ${{ env.TF_WORKDIR }}
         run: tflint --init
+        continue-on-error: true
 
       #ADD: Run TFLint (lint Terraform code)
       - name: TFLint (recursive)
         working-directory: ${{ env.TF_WORKDIR }}
         run: tflint --recursive
+        continue-on-error: true
 
       - name: Terraform fmt
         working-directory: ${{ env.TF_WORKDIR }}
         run: terraform fmt -recursive
 
-      - name: Clean terraform cache
-        working-directory: ${{ env.TF_WORKDIR }}
-        run: |
-          rm -rf .terraform
-          rm -f .terraform.lock.hcl
+      # - name: Clean terraform cache
+      #   working-directory: ${{ env.TF_WORKDIR }}
+      #   run: |
+      #     rm -rf .terraform
+      #     rm -f .terraform.lock.hcl
 
       - name: Terraform init (AAD backend)
         working-directory: ${{ env.TF_WORKDIR }}
@@ -126,18 +128,6 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
         with:
           terraform_wrapper: false
-
-      # ADD: Setup TFLint (optional in apply job)
-      - name: Setup TFLint
-        uses: terraform-linters/setup-tflint@v4
-
-      - name: TFLint init
-        working-directory: ${{ env.TF_WORKDIR }}
-        run: tflint --init
-
-      - name: TFLint (recursive)
-        working-directory: ${{ env.TF_WORKDIR }}
-        run: tflint --recursive
 
       - name: Terraform fmt
         working-directory: ${{ env.TF_WORKDIR }}

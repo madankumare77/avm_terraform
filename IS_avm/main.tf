@@ -11,6 +11,11 @@ data "azurerm_resource_group" "rg_dr" {
 #   resource_group_name = data.azurerm_resource_group.rg.name
 # }
 
+# data "azuread_group" "ad_group" {
+# display_name   = "infy-test"
+# security_enabled = true
+# }
+
 module "law" {
   source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
   version                                   = "0.4.2"
@@ -345,18 +350,22 @@ module "avm-res-containerservice-managedcluster" {
   oidc_issuer_enabled        = each.value.oidc_issuer_enabled
   workload_identity_enabled  = each.value.workload_identity_enabled
   azure_policy_enabled       = each.value.azure_policy_enabled
-  #private_cluster_enabled    = false
+  private_cluster_enabled    = each.value.private_cluster_enabled 
   #dns_prefix_private_cluster = "dr-aks-03"
   #private_dns_zone_id        = local.private_dns_ids["aks"] 
   dns_prefix = each.value.dns_prefix
 
   local_account_disabled = each.value.local_account_disabled
   role_based_access_control_enabled = each.value.role_based_access_control_enabled #Enabling Azure Active Directory integration requires that `role_based_access_control_enabled` be set to true."
-  # azure_active_directory_role_based_access_control = {
-  #   tenant_id = data.azurerm_client_config.current.tenant_id
-  #   admin_group_object_ids = []  #["<AAD-Group-Object-ID>"]
-  #   azure_rbac_enabled = true
-  # }
+  azure_active_directory_role_based_access_control = (
+    try(each.value.azure_active_directory_role_based_access_control, null) == null
+    ? null
+    : {
+        tenant_id = data.azurerm_client_config.current.tenant_id
+        admin_group_object_ids = each.value.azure_active_directory_role_based_access_control.admin_group_object_ids
+        azure_rbac_enabled = each.value.azure_active_directory_role_based_access_control.azure_rbac_enabled
+      }
+  ) 
 
   network_profile = {
     network_plugin      = each.value.network_profile.network_plugin      # "azure" (CNI) or "kubenet"
