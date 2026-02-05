@@ -488,7 +488,7 @@ locals {
       azure_active_directory_role_based_access_control = {
         tenant_id = data.azurerm_client_config.current.tenant_id
         admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
-        azure_rbac_enabled = true
+        azure_rbac_enabled = false                         # (false uses Microsoft entra ID authentication with kubernetes RBAC)
       }
       default_node_pool = {
         name            = "systemnp"

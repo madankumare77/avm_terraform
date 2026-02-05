@@ -6,10 +6,11 @@
   - local_account_disabled (otional: disables AKS local admin)
 
 2. Authentication and Authorization to be enabled Microsoft entra ID authentication with kubernetes RBAC
-  - role_based_access_control_enabled true
+  - role_based_access_control_enabled = true
   - azure_active_directory_role_based_access_control must be configured  
-  - local_account_disabledrecommended true (disables AKS local admin)
-  - azure_rbac_enabledtrue (uses ARM‑based RBAC & K8s RBAC)
+  - local_account_disabledrecommended = true (disables AKS local admin)
+  - azure_rbac_enabled = false (uses Microsoft entra ID authentication with kubernetes RBAC)
+  - azure_rbac_enabled = true (uses Microsoft entra ID authentication with Azure RBAC)
   - to import admin_group_object_ids assigning the built‑in `Directory Readers` role in Microsoft Entra ID at tenant scope to that principal.
   data "azuread_group" "ad_group" {
   display_name   = "infy-test"
