@@ -472,7 +472,7 @@ locals {
 locals {
   aks_configs = {
     aks_dr = {
-      name = "aks-dr-001"
+      name = "aks-dr-004"
       resource_group_name = data.azurerm_resource_group.rg.name
       location = data.azurerm_resource_group.rg.location
       kubernetes_version         = "1.34.1"
@@ -480,10 +480,16 @@ locals {
       oidc_issuer_enabled        = true
       workload_identity_enabled  = true
       azure_policy_enabled       = true
-      dns_prefix = "aks-dr-001"
-      local_account_disabled = false
-      role_based_access_control_enabled = false
+      dns_prefix = "aks-dr-004"
+      local_account_disabled = true
       user_assigned_identity_keys                    = ["aks"]
+      private_cluster_enabled    = true                    # force replacement of the cluster if changed
+      role_based_access_control_enabled = true                      # force replacement of the cluster if changed
+      azure_active_directory_role_based_access_control = {
+        tenant_id = data.azurerm_client_config.current.tenant_id
+        admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
+        azure_rbac_enabled = true
+      }
       default_node_pool = {
         name            = "systemnp"
         vm_size         = "standard_b2ms"
@@ -499,6 +505,7 @@ locals {
         node_labels = {
           "nodepool-type" = "system"
         }
+        node_taints          = ["node=infysvc:NoSchedule"]
       }
       network_profile = {
         network_plugin      = "azure" 
@@ -509,6 +516,12 @@ locals {
         service_cidr        = "10.3.0.0/24"
         outbound_type     = "loadBalancer"
         load_balancer_sku = "standard"
+      }
+      service_mesh_profile = {
+        mode = "Istio"
+        revisions = ["asm-1-27"]
+        external_ingress_gateway_enabled = true
+        internal_ingress_gateway_enabled = true
       }
       diagnostic_settings = {
         di_diag = {

@@ -11,10 +11,10 @@ data "azurerm_resource_group" "rg_dr" {
 #   resource_group_name = data.azurerm_resource_group.rg.name
 # }
 
-# data "azuread_group" "ad_group" {
-# display_name   = "infy-test"
-# security_enabled = true
-# }
+data "azuread_group" "ad_group" {
+display_name   = "infy-test"
+security_enabled = true
+}
 
 module "law" {
   source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
