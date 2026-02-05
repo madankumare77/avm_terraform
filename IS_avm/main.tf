@@ -370,7 +370,7 @@ module "avm-res-containerservice-managedcluster" {
   network_profile = {
     network_plugin      = each.value.network_profile.network_plugin      # "azure" (CNI) or "kubenet"
     network_policy      = each.value.network_profile.network_policy      # "azure" | "calico" (depends on plugin/region)
-    ebpf_data_plane     = each.value.network_profile.ebpf_data_plane     # "cilium" (preview in some regions) or null
+    network_data_plane     = each.value.network_profile.network_data_plane     # "cilium" (preview in some regions) or null
     network_plugin_mode = each.value.network_profile.network_plugin_mode # "overlay"
     dns_service_ip      = each.value.network_profile.dns_service_ip
     service_cidr        = each.value.network_profile.service_cidr

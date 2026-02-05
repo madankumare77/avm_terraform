@@ -320,21 +320,21 @@ locals {
       workload_identity_enabled  = true
       azure_policy_enabled       = true
       dns_prefix = "aks-dr-004"
-      local_account_disabled = false
+      local_account_disabled = true
       user_assigned_identity_keys                    = ["aks"]
-      private_cluster_enabled    = false                    # force replacement of the cluster if changed
-      role_based_access_control_enabled = false                      # force replacement of the cluster if changed
-      # azure_active_directory_role_based_access_control = {
-      #   tenant_id = data.azurerm_client_config.current.tenant_id
-      #   admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
-      #   azure_rbac_enabled = true
-      # }
+      private_cluster_enabled    = true                    # force replacement of the cluster if changed
+      role_based_access_control_enabled = true                      # force replacement of the cluster if changed
+      azure_active_directory_role_based_access_control = {
+        tenant_id = data.azurerm_client_config.current.tenant_id
+        admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
+        azure_rbac_enabled = false                        # (false uses Microsoft entra ID authentication with kubernetes RBAC)
+      }
       default_node_pool = {
         name            = "systemnp"
         vm_size         = "standard_b2ms"
         os_disk_size_gb = 128
         os_disk_type    = "Managed"
-        zones           = ["1", "2", "3"]
+        zones           = ["1"]    #["1", "2", "3"]
         min_count            = 3
         type                 = "VirtualMachineScaleSets"
         max_count            = 5
@@ -364,13 +364,13 @@ locals {
           #   "workload" = "apps"
           # }
           node_taints          = ["node=infysvc:NoSchedule"]
-          zones                = ["1", "2", "3"]
+          zones                = ["1"]    #["1", "2", "3"]
         }
       }
       network_profile = {
         network_plugin      = "azure" 
-        network_policy      = "azure" 
-        ebpf_data_plane     = "cilium"  
+        network_policy      = "cilium" 
+        network_data_plane  = "cilium"
         network_plugin_mode = "overlay"
         dns_service_ip      = "10.3.0.10"
         service_cidr        = "10.3.0.0/24"
