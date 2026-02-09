@@ -1,4 +1,4 @@
-### Peniding Items: AKS:
+### Action Items: AKS:
 1. AKS private cluster\
   - To fully disable public access to the AKS API server, you must run the cluster as a Private Cluster. In Terraform (and with the AVM module you’re using), that means:
   -  Enable private cluster: private_cluster_enabled = true
@@ -18,7 +18,7 @@
   }
   built‑in Directory Readers role in Microsoft Entra ID at tenant scope to that principal
 
-### Peniding Items: SQLMI:
+### Action Items: SQLMI:
 1. active_directory_administrator to enable two things can taken care
    1. Use Microsoft Entra-only authentication - Password not required
    2. Use both SQL and Microsoft Entra authentication - Password required
@@ -321,8 +321,8 @@ locals {
       }
       network_profile = {
         network_plugin      = "azure" 
-        network_policy      = "azure" 
-        network_data_plane     = "cilium"  
+        network_policy      = "cilium" 
+        network_data_plane  = "cilium"
         network_plugin_mode = "overlay"
         dns_service_ip      = "10.3.0.10"
         service_cidr        = "10.3.0.0/24"

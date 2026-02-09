@@ -395,6 +395,91 @@ locals {
       }
 
     }
+    aks_01 = {
+      name = "aks-dr-004"
+      resource_group_name = data.azurerm_resource_group.rg.name
+      location = data.azurerm_resource_group.rg.location
+      kubernetes_version         = "1.34.1"
+      sku_tier                   = "Free"
+      oidc_issuer_enabled        = true
+      workload_identity_enabled  = true
+      azure_policy_enabled       = true
+      dns_prefix = "aks-dr-004"
+      local_account_disabled = true
+      user_assigned_identity_keys                    = ["aks"]
+      private_cluster_enabled    = true                    # force replacement of the cluster if changed
+      role_based_access_control_enabled = true                      # force replacement of the cluster if changed
+      azure_active_directory_role_based_access_control = {
+        tenant_id = data.azurerm_client_config.current.tenant_id
+        admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
+        azure_rbac_enabled = false                        # (false uses Microsoft entra ID authentication with kubernetes RBAC)
+      }
+      default_node_pool = {
+        name            = "systemnp"
+        vm_size         = "standard_b2ms"
+        os_disk_size_gb = 128
+        os_disk_type    = "Managed"
+        zones           = ["1"]    #["1", "2", "3"]
+        min_count            = 3
+        type                 = "VirtualMachineScaleSets"
+        max_count            = 5
+        auto_scaling_enabled = true
+        max_pods             = 110
+        vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
+        # node_labels = {
+        #   "nodepool-type" = "system"
+        # }
+        node_taints          = ["node=infysvc:NoSchedule"]
+      }
+      node_pools = {
+        np1 = {
+          name    = "usernp1"
+          vm_size = "Standard_D4s_v5"
+          mode    = "User"
+          min_count            = 2
+          max_count            = 10
+          auto_scaling_enabled = true
+          vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
+          os_sku               = "Ubuntu"
+          os_type              = "Linux"
+          os_disk_size_gb      = 128
+          os_disk_type         = "Managed"
+          max_pods             = 110
+          # node_labels = {
+          #   "workload" = "apps"
+          # }
+          node_taints          = ["node=infysvc:NoSchedule"]
+          zones                = ["1"]    #["1", "2", "3"]
+        }
+      }
+      network_profile = {
+        network_plugin      = "azure" 
+        network_policy      = "cilium" 
+        network_data_plane  = "cilium"
+        network_plugin_mode = "overlay"
+        dns_service_ip      = "10.3.0.10"
+        service_cidr        = "10.3.0.0/24"
+        outbound_type     = "loadBalancer"
+        load_balancer_sku = "standard"
+      }
+      service_mesh_profile = {
+        mode = "Istio"
+        revisions = ["asm-1-27"]
+        external_ingress_gateway_enabled = true
+        internal_ingress_gateway_enabled = true
+      }
+      # diagnostic_settings = {
+      #   di_diag = {
+      #     name                  = "diag-aks-dr-001cd"
+      #     workspace_resource_id = try(module.law.resource_id, null)
+      #   }
+      # }
+      tags = {
+        environment = "testing"
+        created_by  = "terraform"
+      }
+
+    }
   }
 }
 
