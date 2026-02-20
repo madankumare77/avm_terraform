@@ -1,28 +1,41 @@
 locals {
   virtual_networks = {
-    vnet-primary = {
+    vnet_aks = {
+      create_vnet            = true
+      parent_id              = data.azurerm_resource_group.rg.id
+      name                   = "vnet-sind-bcmsdr-mgmt"
+      location               = data.azurerm_resource_group.rg.location
+      address_space          = ["100.123.136.0/25"]
+      dns_servers            = ["168.63.129.16"]
+      tags = {
+        created_by = "terraform"
+        INFY_BusinessUnit = "IS"
+      }
+      subnet_configs = {
+        snet_aks = {
+          name           = "snet-sind-node-mgmt"
+          address_prefix = ["100.123.136.0/25"]
+          #route_table   = { id = module.avm-res-network-routetable["rt_dr_aks"].resource_id }
+        }
+      }
+    }
+    vnet_sqlmi_dr = {
       create_vnet            = true
       parent_id             = data.azurerm_resource_group.rg.id
-      name                   = "vent-infy-is-dr"
+      name                   = "vnet-sind-db-dr-mgmt"
       location               = data.azurerm_resource_group.rg.location
-      address_space          = ["10.0.0.0/16"]
-      enable_ddos_protection = false
+      address_space          = ["100.123.137.0/24"]
       dns_servers            = ["168.63.129.16"]
       tags = {
         created_by = "terraform"
       }
       subnet_configs = {
-        snet2 = {
-          name           = "subnet-aks"
-          address_prefix = ["10.0.3.0/24"]
-          #nsg_key        = "nsg_primary"
-        }
-        snetmi = {
-          name           = "subnet-mi"
-          address_prefix = ["10.0.1.0/24"]
-          #nsg_key        = "nsg_primary"
-          #route_table   = { id = module.avm-res-network-routetable["rt_primary"].resource_id }
-
+        snetmi_dr = {
+          name           = "snet-sind-sqlmi-dr-mgmt"
+          address_prefix = ["100.123.137.0/25"]
+          nsg_key        = "nsg_dr"
+          #route_table   = { id = module.avm-res-network-routetable["rt_sqlmi_dr"].resource_id }
+ 
           delegation = {
             name = "managedinstancedelegation"
             service_delegation = {
@@ -31,11 +44,11 @@ locals {
             }
           }
         }
-        snet1 = {
-          name           = "subnet-pvt"
-          address_prefix = ["10.0.2.0/24"]
-          #nsg_key        = "nsg_primary"
-          #route_table   = { id = module.avm-res-network-routetable["rt_primary"].resource_id }
+        snet_pe = {
+          name           = "snet-sind-sqlmi-pvt-dr-mgmt"
+          address_prefix = ["100.123.137.128/25"]
+          nsg_key        = "nsg_dr"
+          #route_table   = { id = module.avm-res-network-routetable["rt_sqlmi_pe_dr"].resource_id }
         }
       }
     }
@@ -47,7 +60,7 @@ locals {
 #--------------------------------------------------------------------
 locals {
   nsg_configs = {
-    nsg_primary = {
+    nsg_dr = {
       create_nsg = true
       nsg_name   = "mi-security-group-primary"
       location   = data.azurerm_resource_group.rg.location
@@ -100,6 +113,105 @@ locals {
           priority                   = 4096
         },
         # Outbound rules
+        {
+          direction                  = "Outbound"
+          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-optional-azure-out-100-122-1-32-27"
+          source_address_prefix      = "100.122.1.32/27"
+          source_port_range          = "*"
+          destination_address_prefix = "AzureCloud"
+          destination_port_range     = "443"
+          protocol                   = "Tcp"
+          access                     = "Allow"
+          priority                   = 100
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-aad-out-100-122-1-32-27-v11"
+          source_address_prefix      = "100.122.1.32/27"
+          source_port_range          = "*"
+          destination_address_prefix = "AzureActiveDirectory"
+          destination_port_range     = "443"
+          protocol                   = "Tcp"
+          access                     = "Allow"
+          priority                   = 101
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-onedsc-out-100-122-1-32-27-v11"
+          source_address_prefix      = "100.122.1.32/27"
+          source_port_range          = "*"
+          destination_address_prefix = "OneDsCollector"
+          destination_port_range    = "443"
+          protocol                   = "Tcp"
+          access                     = "Allow"
+          priority                   = 102
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-internal-out-100-122-1-32-27-v11"
+          source_address_prefix      = "100.122.1.32/27"
+          source_port_range          = "*"
+          destination_address_prefix = "100.122.1.32/27"
+          destination_port_range    = "*"
+          protocol                   = "*"
+          access                     = "Allow"
+          priority                   = 103
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-strg-p-out-100-122-1-32-27-v11"
+          source_address_prefix      = "100.122.1.32/27"
+          source_port_range          = "*"
+          destination_address_prefix = "Storage.centralindia"
+          destination_port_range    = "443"
+          protocol                   = "*"
+          access                     = "Allow"
+          priority                   = 104
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-strg-s-out-100-122-1-32-27-v11"
+          source_address_prefix      = "100.122.1.32/27"
+          source_port_range          = "*"
+          destination_address_prefix = "Storage.southindia"
+          destination_port_range    = "443"
+          protocol                   = "*"
+          access                     = "Allow"
+          priority                   = 105
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "AllowSQLMIstorage"
+          source_address_prefix      = "100.122.1.32/27"
+          source_port_range          = "*"
+          destination_address_prefix = "100.122.100.32/27"
+          destination_port_range    = "443"
+          protocol                   = "*"
+          access                     = "Allow"
+          priority                   = 106
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "storage-access"
+          source_address_prefix      = "*"
+          source_port_range          = "*"
+          destination_address_prefix = "100.122.93.139/32"
+          destination_port_range     = "443"
+          protocol                   = "*"
+          access                     = "Allow"
+          priority                   = 107
+        },
+        {
+          direction                  = "Outbound"
+          name                       = "prepare-deny_all_outbound"
+          source_address_prefix      = "*"
+          source_port_range          = "*"
+          destination_address_prefix = "*"
+          destination_port_range     = "*"
+          protocol                   = "*"
+          access                     = "Deny"
+          priority                   = 4096
+        } 
       ]
       tags = {
         created_by = "terraform"
@@ -113,11 +225,11 @@ locals {
 #--------------------------------------------------------------------
 locals {
   route_table_configs = {
-    # rt_primary = {
-    #   name = "sqlmi-route-table-primary"
-    #   location = data.azurerm_resource_group.rg.location
-    #   resource_group_name = data.azurerm_resource_group.rg.name
-    # }
+    rt_dr = {
+      name = "sqlmi-route-table-primary"
+      location = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+    }
   }
 }
 

@@ -18,6 +18,10 @@
   }
   built‑in Directory Readers role in Microsoft Entra ID at tenant scope to that principal
 
+3. node pool in different rg: AKS will create and own the node resource group (NRG) itself; you must not point it to an existing RG. If the RG already exists—even if it’s empty—AKS returns:
+
+4. taints: we can't able to add taints for default_node_pool due to not available in avm
+
 ### Action Items: SQLMI:
 1. active_directory_administrator to enable two things can taken care
    1. Use Microsoft Entra-only authentication - Password not required
