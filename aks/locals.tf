@@ -47,64 +47,64 @@ locals {
 #--------------------------------------------------------------------
 locals {
   nsg_configs = {
-    nsg_primary = {
-      create_nsg = true
-      nsg_name   = "mi-security-group-primary"
-      location   = data.azurerm_resource_group.rg.location
-      rg_name    = data.azurerm_resource_group.rg.name
+    # nsg_primary = {
+    #   create_nsg = true
+    #   nsg_name   = "mi-security-group-primary"
+    #   location   = data.azurerm_resource_group.rg.location
+    #   rg_name    = data.azurerm_resource_group.rg.name
 
-      security_rules = [
-                # Management ports
-        {
-          direction                  = "Inbound"
-          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-healthprobe-in-100-122-1-32-27-v11"
-          source_address_prefix      = "AzureLoadBalancer"
-          source_port_range          = "*"
-          destination_address_prefix = "100.122.1.32/27"
-          destination_port_range     = "*"
-          protocol                   = "*"
-          access                     = "Allow"
-          priority                   = 100
-        },
-        {
-          direction                  = "Inbound"
-          name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-internal-in-100-122-1-32-27-v11"
-          source_address_prefix      = "100.122.1.32/27"
-          source_port_range          = "*"
-          destination_address_prefix = "100.122.1.32/27"
-          destination_port_range     = "*"
-          protocol                   = "*"
-          access                     = "Allow"
-          priority                   = 101
-        },
-        {
-          direction                  = "Inbound"
-          name                       = "prepare-allow_tds_inbound"
-          source_address_prefix      = "VirtualNetwork"
-          source_port_range          = "*"
-          destination_address_prefix = "100.122.1.32/27"
-          destination_port_ranges    = ["1433","11000-11999"]
-          protocol                   = "Tcp"
-          access                     = "Allow"
-          priority                   = 1000
-        },
-        {
-          direction                  = "Inbound"
-          name                       = "prepare-deny_all_inbound"
-          source_address_prefix      = "*"
-          source_port_range          = "*"
-          destination_address_prefix = "*"
-          destination_port_range     = "*"
-          protocol                   = "*"
-          access                     = "Deny"
-          priority                   = 4096
-        },
-        # Outbound rules
-      ]
-      tags = {
-        created_by = "terraform"
-      }
-    }
+    #   security_rules = [
+    #             # Management ports
+    #     {
+    #       direction                  = "Inbound"
+    #       name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-healthprobe-in-100-122-1-32-27-v11"
+    #       source_address_prefix      = "AzureLoadBalancer"
+    #       source_port_range          = "*"
+    #       destination_address_prefix = "100.122.1.32/27"
+    #       destination_port_range     = "*"
+    #       protocol                   = "*"
+    #       access                     = "Allow"
+    #       priority                   = 100
+    #     },
+    #     {
+    #       direction                  = "Inbound"
+    #       name                       = "Microsoft.Sql-managedInstances_UseOnly_mi-internal-in-100-122-1-32-27-v11"
+    #       source_address_prefix      = "100.122.1.32/27"
+    #       source_port_range          = "*"
+    #       destination_address_prefix = "100.122.1.32/27"
+    #       destination_port_range     = "*"
+    #       protocol                   = "*"
+    #       access                     = "Allow"
+    #       priority                   = 101
+    #     },
+    #     {
+    #       direction                  = "Inbound"
+    #       name                       = "prepare-allow_tds_inbound"
+    #       source_address_prefix      = "VirtualNetwork"
+    #       source_port_range          = "*"
+    #       destination_address_prefix = "100.122.1.32/27"
+    #       destination_port_ranges    = ["1433","11000-11999"]
+    #       protocol                   = "Tcp"
+    #       access                     = "Allow"
+    #       priority                   = 1000
+    #     },
+    #     {
+    #       direction                  = "Inbound"
+    #       name                       = "prepare-deny_all_inbound"
+    #       source_address_prefix      = "*"
+    #       source_port_range          = "*"
+    #       destination_address_prefix = "*"
+    #       destination_port_range     = "*"
+    #       protocol                   = "*"
+    #       access                     = "Deny"
+    #       priority                   = 4096
+    #     },
+    #     # Outbound rules
+    #   ]
+    #   tags = {
+    #     created_by = "terraform"
+    #   }
+    # }
   }
 }
 

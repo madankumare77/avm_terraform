@@ -20,8 +20,7 @@ provider "azurerm" {
       prevent_deletion_if_contains_resources = true
     }
   }
-  #subscription_id     = "a0b36c09-679f-4dfb-829f-3b6685282dae"
-  subscription_id =  "6a0f429d-3dec-45ca-9dba-8f9847b98a7b" #rat
+  subscription_id =  "ee485719-86dd-43c5-ab00-4ae86ea6ffd5" #jay
   storage_use_azuread = true
   # subscription_id = var.subscription_id
   # tenant_id       = var.tenant_id

@@ -134,7 +134,7 @@ locals {
 locals {
   storage_account_configs = {
     st1 = {
-      name                              = "sttestinfytest001"
+      name                              = "avmtest00001"
       resource_group_name               = data.azurerm_resource_group.rg.name
       location                          = data.azurerm_resource_group.rg.location
       account_tier                      = "Standard"
