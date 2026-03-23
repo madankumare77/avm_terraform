@@ -302,14 +302,23 @@ locals {
       name                = "infy-test-function-identity"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
+      env     = dev
     }
     cosmosdb = {
       name                = "mannaged_identity_cosdb-cind-test"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
+      env     = dev
+    }
+    st = {
+      name                = "mannaged_identity_cosdb-cind-test"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      env     = prod
     }
   }
 }
+
 #--------------------------------------------------------------------
 # Application Insights configurations
 #--------------------------------------------------------------------

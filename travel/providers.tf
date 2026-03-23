@@ -28,9 +28,8 @@ provider "azurerm" {
     }
   }
   storage_use_azuread = true
-  resource_provider_registrations = "none"
-  #subscription_id =  "6a0f429d-3dec-45ca-9dba-8f9847b98a7b" #rat
-  subscription_id =  "ee485719-86dd-43c5-ab00-4ae86ea6ffd5" #jay
+  subscription_id = var.subscription_id
+  tenant_id = var.tenant_id
 }
 
 data "azurerm_client_config" "current" {}
