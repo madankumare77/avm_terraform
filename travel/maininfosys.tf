@@ -279,20 +279,6 @@ module "avm-res-containerservice-managedcluster" {
       module.avm-res-managedidentity-userassignedidentity[id_key].resource_id
     ])
   }
-
-  key_vault_secrets_provider = (
-    try(each.value.key_vault_secrets_provider, null) == null
-    ? null
-    : {
-        secret_rotation_enabled = each.value.key_vault_secrets_provider.secret_rotation_enabled
-        secret_rotation_interval = each.value.key_vault_secrets_provider.secret_rotation_interval # "AzureKeyVaultSecretsProviderV2" or "AzureKeyVaultSecretsProvider"
-      }
-  )
-
-  key_vault_secrets_provider = {
-    secret_rotation_enabled = false #try(each.value.key_vault_secrets_provider.secret_rotation_enabled, null)
-    #secret_rotation_interval = #try(each.value.key_vault_secrets_provider.secret_rotation_interval, null) # "AzureKeyVaultSecretsProviderV2" or "AzureKeyVaultSecretsProvider"
-  }
  
   diagnostic_settings = (
     contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
@@ -318,7 +304,9 @@ module "avm-res-containerservice-managedcluster" {
         internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
      }
   )
- 
+  key_vault_secrets_provider = {
+    secret_rotation_enabled = true
+  }
   tags = (
     try(each.value.tags, null) == null
     ? null
@@ -393,3 +381,4 @@ module "avm-res-network-privatednszone" {
     }
   }
 }
+ 

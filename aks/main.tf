@@ -478,6 +478,9 @@ module "avm-res-containerservice-managedcluster" {
         internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
      }
   )
+  key_vault_secrets_provider = {
+    secret_rotation_enabled = false 
+  }
 
   tags = (
     try(each.value.tags, null) == null

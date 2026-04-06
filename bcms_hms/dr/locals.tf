@@ -407,105 +407,105 @@ locals {
 #--------------------------------------------------------------------
 locals {
   aks_configs = {
-    # aks_dr = {
-    #   name = "isaksbcmsdrmgmt0003"
-    #   resource_group_name = data.azurerm_resource_group.rg_aks.name
-    #   location = data.azurerm_resource_group.rg_aks.location
-    #   node_resource_group_name   = "rg-sind-assets-isaksbcmsdrmgmt0001"
-    #   kubernetes_version         = "1.33.5"
-    #   sku_tier                   = "Standard"
-    #   oidc_issuer_enabled        = true
-    #   workload_identity_enabled  = true
-    #   azure_policy_enabled       = false
-    #   http_application_routing_enabled = false
-    #   node_os_channel_upgrade    = "None"
-    #   dns_prefix = "isaksbcmsdrmgmt0002"
-    #   local_account_disabled = false
-    #   user_assigned_identity_keys                    = ["aks"]
-    #   private_cluster_enabled    = true                    # force replacement of the cluster if changed
-    #   role_based_access_control_enabled = false                      # force replacement of the cluster if changed
-    #   # azure_active_directory_role_based_access_control = {
-    #   #   tenant_id = data.azurerm_client_config.current.tenant_id
-    #   #   admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
-    #   #   azure_rbac_enabled = false                         # (false uses Microsoft entra ID authentication with kubernetes RBAC)
-    #   # }
-    #   default_node_pool = {
-    #     name            = "platform"
-    #     vm_size         = "Standard_D4ds_v5"
-    #     os_sku          = "AzureLinux3"     #AzureLinux
-    #     os_disk_size_gb = 130
-    #     os_disk_type    = "Managed"
-    #    #zones           = ["1", "2", "3"]  #South india not supporting for availability zones
-    #     min_count            = 1
-    #     type                 = "VirtualMachineScaleSets"
-    #     max_count            = 3
-    #     auto_scaling_enabled = true
-    #     max_pods             = 90
-    #     vnet_subnet_id       = local.subnet_ids["vnet_aks.snet_aks"]
-    #     node_taints          = ["CriticalAddonsOnly=true:NoSchedule"]
-    #     node_labels = {
-    #       "app" = "infysvc"
-    #     }
-    #   }
-    #   # node_pools = {
-    #   #   np1 = {
-    #   #     name    = "usernp1"
-    #   #     vm_size = "Standard_D4s_v5"
-    #   #     mode    = "User"
-    #   #     min_count            = 2
-    #   #     max_count            = 10
-    #   #     auto_scaling_enabled = true
-    #   #     vnet_subnet_id       = local.subnet_ids["vnet_aks.snet_aks"]
-    #   #     os_sku               = "AzureLinux3"
-    #   #     os_type              = "Linux"
-    #   #     os_disk_size_gb      = 128
-    #   #     os_disk_type         = "Managed"
-    #   #     max_pods             = 110
-    #   #     node_labels = {
-    #   #       "workload" = "apps"
-    #   #     }
-    #   #     node_taints          = ["node=infysvc:NoSchedule"]
-    #   #     zones                = ["1", "2", "3"]
-    #   #   }
-    #   # }
-    #   network_profile = {
-    #     network_plugin      = "azure"
-    #     network_policy      = "cilium"
-    #     network_data_plane  = "cilium"  
-    #     network_plugin_mode = "overlay"
-    #     dns_service_ip      = "10.0.0.10"
-    #     service_cidr        = "10.0.0.0/16"
-    #     pod_cidr            = "192.168.0.0/16"
-    #     outbound_type     = "loadBalancer" #"userDefinedRouting"
-    #     load_balancer_sku = "standard"
-    #   }
-    #   service_mesh_profile = {
-    #     mode = "Istio"
-    #     revisions = ["asm-1-28"]
-    #     external_ingress_gateway_enabled = false
-    #     internal_ingress_gateway_enabled = false
-    #   }
-    #   # diagnostic_settings = {
-    #   #   di_diag = {
-    #   #     name                  = "diag-aks-logs"
-    #   #     storage_account_resource_id = data.azurerm_storage_account.dr_aks_diag.id
-    #   #   }
-    #   # }
-    #   tags = {
-    #     created_by  = "terraform"
-    #     INFY_Appmaster_App_Name = "isaksbcmsdrmgmt"
-    #     INFY_Appmaster_ID = "NA"
-    #     INFY_BusinessUnit = "IS"
-    #     INFY_CostCenter = "No FR_IS"
-    #     INFY_Environment = "Mgmt"
-    #     INFY_Managed_by = "IS"
-    #     INFY_Owner = "EPM-Cloud@infosys.com"
-    #     INFY_Platform = "Mgmt"
-    #     INFY_ProjectCode = "EPMPRJBE"
-    #     INFY_Provider = "Azure"
-    #   }
+    aks_dr = {
+      name = "isaksbcmsdrmgmt0003"
+      resource_group_name = data.azurerm_resource_group.rg_aks.name
+      location = data.azurerm_resource_group.rg_aks.location
+      node_resource_group_name   = "rg-sind-assets-isaksbcmsdrmgmt0001"
+      kubernetes_version         = "1.33.5"
+      sku_tier                   = "Standard"
+      oidc_issuer_enabled        = true
+      workload_identity_enabled  = true
+      azure_policy_enabled       = false
+      http_application_routing_enabled = false
+      node_os_channel_upgrade    = "None"
+      dns_prefix = "isaksbcmsdrmgmt0002"
+      local_account_disabled = false
+      user_assigned_identity_keys                    = ["aks"]
+      private_cluster_enabled    = true                    # force replacement of the cluster if changed
+      role_based_access_control_enabled = false                      # force replacement of the cluster if changed
+      # azure_active_directory_role_based_access_control = {
+      #   tenant_id = data.azurerm_client_config.current.tenant_id
+      #   admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
+      #   azure_rbac_enabled = false                         # (false uses Microsoft entra ID authentication with kubernetes RBAC)
+      # }
+      default_node_pool = {
+        name            = "platform"
+        vm_size         = "Standard_D4ds_v5"
+        os_sku          = "AzureLinux3"     #AzureLinux
+        os_disk_size_gb = 130
+        os_disk_type    = "Managed"
+       #zones           = ["1", "2", "3"]  #South india not supporting for availability zones
+        min_count            = 1
+        type                 = "VirtualMachineScaleSets"
+        max_count            = 3
+        auto_scaling_enabled = true
+        max_pods             = 90
+        vnet_subnet_id       = local.subnet_ids["vnet_aks.snet_aks"]
+        node_taints          = ["CriticalAddonsOnly=true:NoSchedule"]
+        node_labels = {
+          "app" = "infysvc"
+        }
+      }
+      # node_pools = {
+      #   np1 = {
+      #     name    = "usernp1"
+      #     vm_size = "Standard_D4s_v5"
+      #     mode    = "User"
+      #     min_count            = 2
+      #     max_count            = 10
+      #     auto_scaling_enabled = true
+      #     vnet_subnet_id       = local.subnet_ids["vnet_aks.snet_aks"]
+      #     os_sku               = "AzureLinux3"
+      #     os_type              = "Linux"
+      #     os_disk_size_gb      = 128
+      #     os_disk_type         = "Managed"
+      #     max_pods             = 110
+      #     node_labels = {
+      #       "workload" = "apps"
+      #     }
+      #     node_taints          = ["node=infysvc:NoSchedule"]
+      #     zones                = ["1", "2", "3"]
+      #   }
+      # }
+      network_profile = {
+        network_plugin      = "azure"
+        network_policy      = "cilium"
+        network_data_plane  = "cilium"  
+        network_plugin_mode = "overlay"
+        dns_service_ip      = "10.0.0.10"
+        service_cidr        = "10.0.0.0/16"
+        pod_cidr            = "192.168.0.0/16"
+        outbound_type     = "loadBalancer" #"userDefinedRouting"
+        load_balancer_sku = "standard"
+      }
+      service_mesh_profile = {
+        mode = "Istio"
+        revisions = ["asm-1-28"]
+        external_ingress_gateway_enabled = false
+        internal_ingress_gateway_enabled = false
+      }
+      # diagnostic_settings = {
+      #   di_diag = {
+      #     name                  = "diag-aks-logs"
+      #     storage_account_resource_id = data.azurerm_storage_account.dr_aks_diag.id
+      #   }
+      # }
+      tags = {
+        created_by  = "terraform"
+        INFY_Appmaster_App_Name = "isaksbcmsdrmgmt"
+        INFY_Appmaster_ID = "NA"
+        INFY_BusinessUnit = "IS"
+        INFY_CostCenter = "No FR_IS"
+        INFY_Environment = "Mgmt"
+        INFY_Managed_by = "IS"
+        INFY_Owner = "EPM-Cloud@infosys.com"
+        INFY_Platform = "Mgmt"
+        INFY_ProjectCode = "EPMPRJBE"
+        INFY_Provider = "Azure"
+      }
  
-    # }
+    }
   }
 }
  
@@ -592,62 +592,62 @@ locals {
 #--------------------------------------------------------------------
 locals {
   keyvault_configs = {
-    kv = {
-      name                = "kv-sind-bcms-cmk-mgmt"
-      location            = data.azurerm_resource_group.rg_aks.location
-      resource_group_name = data.azurerm_resource_group.rg_aks.name
-      sku_name           = "standard"
-      soft_delete_retention_days      = 90
-      purge_protection_enabled        = true
-      legacy_access_policies_enabled  = false
-      enabled_for_deployment          = true
-      enabled_for_disk_encryption     = true
-      enabled_for_template_deployment = true
-      public_network_access_enabled   = false
-      enable_telemetry                = false
-      network_acls = {
-        bypass         = "AzureServices"
-        default_action = "Deny"
-        virtual_network_subnet_refs = [
-          {
-            vnet_key   = "vnet_pass"
-            subnet_key = "snet_pass"
-          }
-        ]
-      }
-      private_endpoints = {
-        kvpe = {
-          name       = "pvt-endpoint-kv-sind-bcms-dr-mgmt"
-          vnet_key   = "vnet_pass"
-          subnet_key = "snet_pass"
-          private_dns_zone_resource_ids = []
-        }
-      }
-      diagnostic_settings = {
-        # kvdiag = {
-        #   name                  = "diag-settings"
-        #   workspace_resource_id = try(module.law.resource_id, null) # if you have LA workspace
-        # }
-      }
-      tags = {
-        created_by = "terraform"
-        INFY_EA_ResourceName = "kv-sind-bcms-dr-mgmt"
-        INFY_EA_CustomTag01 = "No Po"
-        INFY_EA_CustomTag02 = "Infosys Limited"
-        INFY_EA_CustomTag03 = "EPMCFG"
-        INFY_EA_CustomTag04 = "PaaS"
-        INFY_EA_ProjectCode = "EPMPRJBE"
-        INFY_EA_Automation = " Yes"
-        INFY_EA_BusinessUnit = "IS"
-        INFY_EA_CostCenter = "No FR_IS"
-        INFY_EA_Purpose = "IS_Internal"
-        INFY_EA_Role = "key vault"
-        INFY_EA_Technical_Tag = "EPM_CFG@infosys.com"
-        INFY_EA_Weekendshutdown = "No"
-        INFY_EA_Workinghours = "00 = 00 23 =59"
-        INFY_EA_WorkLoadType = "mgmt"
-      }
-    }
+    # kv = {
+    #   name                = "kv-sind-bcms-cmk-mgmt"
+    #   location            = data.azurerm_resource_group.rg_aks.location
+    #   resource_group_name = data.azurerm_resource_group.rg_aks.name
+    #   sku_name           = "standard"
+    #   soft_delete_retention_days      = 90
+    #   purge_protection_enabled        = true
+    #   legacy_access_policies_enabled  = false
+    #   enabled_for_deployment          = true
+    #   enabled_for_disk_encryption     = true
+    #   enabled_for_template_deployment = true
+    #   public_network_access_enabled   = false
+    #   enable_telemetry                = false
+    #   network_acls = {
+    #     bypass         = "AzureServices"
+    #     default_action = "Deny"
+    #     virtual_network_subnet_refs = [
+    #       {
+    #         vnet_key   = "vnet_pass"
+    #         subnet_key = "snet_pass"
+    #       }
+    #     ]
+    #   }
+    #   private_endpoints = {
+    #     kvpe = {
+    #       name       = "pvt-endpoint-kv-sind-bcms-dr-mgmt"
+    #       vnet_key   = "vnet_pass"
+    #       subnet_key = "snet_pass"
+    #       private_dns_zone_resource_ids = []
+    #     }
+    #   }
+    #   diagnostic_settings = {
+    #     # kvdiag = {
+    #     #   name                  = "diag-settings"
+    #     #   workspace_resource_id = try(module.law.resource_id, null) # if you have LA workspace
+    #     # }
+    #   }
+    #   tags = {
+    #     created_by = "terraform"
+    #     INFY_EA_ResourceName = "kv-sind-bcms-dr-mgmt"
+    #     INFY_EA_CustomTag01 = "No Po"
+    #     INFY_EA_CustomTag02 = "Infosys Limited"
+    #     INFY_EA_CustomTag03 = "EPMCFG"
+    #     INFY_EA_CustomTag04 = "PaaS"
+    #     INFY_EA_ProjectCode = "EPMPRJBE"
+    #     INFY_EA_Automation = " Yes"
+    #     INFY_EA_BusinessUnit = "IS"
+    #     INFY_EA_CostCenter = "No FR_IS"
+    #     INFY_EA_Purpose = "IS_Internal"
+    #     INFY_EA_Role = "key vault"
+    #     INFY_EA_Technical_Tag = "EPM_CFG@infosys.com"
+    #     INFY_EA_Weekendshutdown = "No"
+    #     INFY_EA_Workinghours = "00 = 00 23 =59"
+    #     INFY_EA_WorkLoadType = "mgmt"
+    #   }
+    # }
   }
 }
  

@@ -482,6 +482,18 @@ module "avm-res-containerservice-managedcluster" {
         internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
      }
   )
+
+  key_vault_secrets_provider = {
+    secret_rotation_enabled = false #try(each.value.key_vault_secrets_provider.secret_rotation_enabled, null)
+    #secret_rotation_interval = #try(each.value.key_vault_secrets_provider.secret_rotation_interval, null) # "AzureKeyVaultSecretsProviderV2" or "AzureKeyVaultSecretsProvider"
+  }
+
+      # + key_vault_secrets_provider {
+      #     + secret_identity          = (known after apply)
+      #     + secret_rotation_enabled  = false
+      #     + secret_rotation_interval = "2m"
+      #   }
+ 
  
   tags = (
     try(each.value.tags, null) == null
@@ -831,39 +843,50 @@ locals {
 }
 
 
-locals {
-  disk_encryption_sets = {
-    des_aks = {
-      name = ""
-      location = ""
-      resource_group_name = 
-      key_vault_resource_id = 
-      key_vault_key_id = 
-      auto_key_rotation_enabled = true
-      encryption_type = ""
-      tags = {
-        "app" = "travel"
-        "created_by" = "terraform"
-      }
-    }
-  }
-}
+# locals {
+#   disk_encryption_sets = {
+#     des_aks = {
+#       name = ""
+#       location = ""
+#       resource_group_name = 
+#       key_vault_resource_id = 
+#       key_vault_key_id = 
+#       auto_key_rotation_enabled = true
+#       encryption_type = ""
+#       tags = {
+#         "app" = "travel"
+#         "created_by" = "terraform"
+#       }
+#     }
+#   }
+# }
+
+# module "avm-res-compute-diskencryptionset" {
+#   source  = "Azure/avm-res-compute-diskencryptionset/azurerm"
+#   version = "0.1.0"
+#   for_each = { for k, v in local.disk_encryption_sets : k => v }
+#   name                = each.value.name
+#   location            = each.value.location
+#   resource_group_name = each.value.resource_group_name
+#   key_vault_key_id    = try(each.value.key_vault_key_id, null)
+#   key_vault_resource_id = try(each.value.key_vault_resource_id, null)
+#   auto_key_rotation_enabled = try(each.value.auto_key_rotation_enabled, null)
+#   encryption_type = try(each.value.encryption_type, null)
+#   enable_telemetry = false
+#   tags = (
+#     try(each.value.tags, null) == null
+#     ? null
+#     : { for k, v in each.value.tags : k => tostring(v) }
+#   )
+# }
+
 
 module "avm-res-compute-diskencryptionset" {
-  source  = "Azure/avm-res-compute-diskencryptionset/azurerm"
-  version = "0.1.0"
-  for_each = { for k, v in local.disk_encryption_sets : k => v }
-  name                = each.value.name
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
-  key_vault_key_id    = try(each.value.key_vault_key_id, null)
-  key_vault_resource_id = try(each.value.key_vault_resource_id, null)
-  auto_key_rotation_enabled = try(each.value.auto_key_rotation_enabled, null)
-  encryption_type = try(each.value.encryption_type, null)
-  enable_telemetry = false
-  tags = (
-    try(each.value.tags, null) == null
-    ? null
-    : { for k, v in each.value.tags : k => tostring(v) }
-  )
+source  = "Azure/avm-res-compute-diskencryptionset/azurerm"
+version = "0.1.0"
+name = "fxndfxnbb"
+location = data.azurerm_resource_group.rg_aks.location
+resource_group_name = data.azurerm_resource_group.rg_aks.name
+key_vault_key_id = azurerm_key_vault_key.example.versionless_id
+key_vault_resource_id = module.keyvault["kv"].resource_id
 }
