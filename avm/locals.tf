@@ -217,6 +217,7 @@ locals {
         app_insights_key = "app_insights1"
         application_stack = {
           java = { java_version = "21" }
+          #dotnet_core = { dotnet_core_version = "v4.0" }
         }
       }
       app_settings = {
