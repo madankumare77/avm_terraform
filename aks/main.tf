@@ -39,8 +39,8 @@ module "avm_res_network_virtualnetwork" {
   # --- Transform your subnet_configs -> module.subnets expected shape ---
   subnets = {
     for sk, s in each.value.subnet_configs : sk => {
-      name             = s.name
-      address_prefixes = s.address_prefix
+      name                            = s.name
+      address_prefixes                = s.address_prefix
       default_outbound_access_enabled = try(s.default_outbound_access_enabled, true)
       service_endpoints_with_location = [
         for svc in try(s.service_endpoints, []) : {
@@ -50,7 +50,7 @@ module "avm_res_network_virtualnetwork" {
       ]
 
       network_security_group = try((try(s.nsg_key, null) == null ? null : { id = local.nsg_ids[s.nsg_key] }), null)
-      route_table = try(s.route_table, null)
+      route_table            = try(s.route_table, null)
 
       # If delegation exists, create list; else empty
       delegations = try([
@@ -109,11 +109,11 @@ data "azurerm_network_security_group" "existing" {
 }
 
 module "avm-res-network-routetable" {
-  source  = "Azure/avm-res-network-routetable/azurerm"
-  for_each = { for k, v in local.route_table_configs : k => v }
-  version = "0.4.1"
-  name = each.value.name
-  location = each.value.location
+  source              = "Azure/avm-res-network-routetable/azurerm"
+  for_each            = { for k, v in local.route_table_configs : k => v }
+  version             = "0.4.1"
+  name                = each.value.name
+  location            = each.value.location
   resource_group_name = each.value.resource_group_name
   enable_telemetry    = false
 }
@@ -136,8 +136,8 @@ module "avm-res-managedidentity-userassignedidentity" {
 
 #This is the module call
 module "sqlmi_primary" {
-  source = "Azure/avm-res-sql-managedinstance/azurerm"
-  version = "0.1.3"
+  source   = "Azure/avm-res-sql-managedinstance/azurerm"
+  version  = "0.1.3"
   for_each = { for k, v in local.sqlmi-configs : k => v }
 
   name                         = each.value.name
@@ -154,10 +154,10 @@ module "sqlmi_primary" {
   public_data_endpoint_enabled = each.value.public_data_endpoint_enabled
   subnet_id                    = each.value.subnet_id
   minimum_tls_version          = each.value.minimum_tls_version
-  zone_redundant_enabled = each.value.zone_redundant_enabled
-  storage_account_type = "GRS"
-  enable_telemetry    = false
-  dns_zone_partner_id = try(each.value.dns_zone_partner_id, null)
+  zone_redundant_enabled       = each.value.zone_redundant_enabled
+  storage_account_type         = "GRS"
+  enable_telemetry             = false
+  dns_zone_partner_id          = try(each.value.dns_zone_partner_id, null)
 
   managed_identities = {
     user_assigned_resource_ids = toset([
@@ -170,11 +170,11 @@ module "sqlmi_primary" {
     try(each.value.active_directory_administrator, null) == null
     ? null
     : {
-        azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
-        object_id                   = each.value.active_directory_administrator.object_id
-        tenant_id                   = each.value.active_directory_administrator.tenant_id
-        login_username              = each.value.active_directory_administrator.login_username
-      }
+      azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
+      object_id                   = each.value.active_directory_administrator.object_id
+      tenant_id                   = each.value.active_directory_administrator.tenant_id
+      login_username              = each.value.active_directory_administrator.login_username
+    }
   )
 
   private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
@@ -193,8 +193,8 @@ module "sqlmi_primary" {
     ? {
       for diag_k, diag in each.value.diagnostic_settings :
       diag_k => {
-        name                  = try(diag.name, null)
-        workspace_resource_id = try(diag.workspace_resource_id, null)
+        name                           = try(diag.name, null)
+        workspace_resource_id          = try(diag.workspace_resource_id, null)
         log_analytics_destination_type = "AzureDiagnostics"
       }
     }
@@ -207,8 +207,8 @@ module "sqlmi_primary" {
 }
 
 module "sqlmi_secondary" {
-  source = "Azure/avm-res-sql-managedinstance/azurerm"
-  version = "0.1.3"
+  source   = "Azure/avm-res-sql-managedinstance/azurerm"
+  version  = "0.1.3"
   for_each = { for k, v in local.sqlmi-configs-secondary : k => v }
 
   name                         = each.value.name
@@ -225,10 +225,10 @@ module "sqlmi_secondary" {
   public_data_endpoint_enabled = each.value.public_data_endpoint_enabled
   subnet_id                    = each.value.subnet_id
   minimum_tls_version          = each.value.minimum_tls_version
-  zone_redundant_enabled = each.value.zone_redundant_enabled
-  storage_account_type = "GRS"
-  enable_telemetry    = false
-  dns_zone_partner_id = try(each.value.dns_zone_partner_id, null)
+  zone_redundant_enabled       = each.value.zone_redundant_enabled
+  storage_account_type         = "GRS"
+  enable_telemetry             = false
+  dns_zone_partner_id          = try(each.value.dns_zone_partner_id, null)
 
   managed_identities = {
     user_assigned_resource_ids = toset([
@@ -241,11 +241,11 @@ module "sqlmi_secondary" {
     try(each.value.active_directory_administrator, null) == null
     ? null
     : {
-        azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
-        object_id                   = each.value.active_directory_administrator.object_id
-        tenant_id                   = each.value.active_directory_administrator.tenant_id
-        login_username              = each.value.active_directory_administrator.login_username
-      }
+      azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
+      object_id                   = each.value.active_directory_administrator.object_id
+      tenant_id                   = each.value.active_directory_administrator.tenant_id
+      login_username              = each.value.active_directory_administrator.login_username
+    }
   )
 
   private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
@@ -264,8 +264,8 @@ module "sqlmi_secondary" {
     ? {
       for diag_k, diag in each.value.diagnostic_settings :
       diag_k => {
-        name                  = try(diag.name, null)
-        workspace_resource_id = try(diag.workspace_resource_id, null)
+        name                           = try(diag.name, null)
+        workspace_resource_id          = try(diag.workspace_resource_id, null)
         log_analytics_destination_type = "AzureDiagnostics"
       }
     }
@@ -326,58 +326,58 @@ module "sqlmi_secondary" {
 # 3: api_server_access_profile required then subnet is not allowed to be same with agent node subnet
 
 module "avm-res-containerservice-managedcluster" {
-  source  = "Azure/avm-res-containerservice-managedcluster/azurerm"
-  version = "0.3.3"
+  source   = "Azure/avm-res-containerservice-managedcluster/azurerm"
+  version  = "0.3.3"
   for_each = { for k, v in local.aks_configs : k => v }
 
-  name                       = each.value.name
-  location                   = data.azurerm_resource_group.rg.location
-  resource_group_name        = each.value.resource_group_name
-  kubernetes_version         = each.value.kubernetes_version # optional; omit to use default
-  sku_tier                   = each.value.sku_tier   # "Free" | "Standard" (AKS Uptime SLA)
-  enable_telemetry           = false    
-  oidc_issuer_enabled        = each.value.oidc_issuer_enabled
-  workload_identity_enabled  = each.value.workload_identity_enabled
-  azure_policy_enabled       = each.value.azure_policy_enabled
+  name                      = each.value.name
+  location                  = data.azurerm_resource_group.rg.location
+  resource_group_name       = each.value.resource_group_name
+  kubernetes_version        = each.value.kubernetes_version # optional; omit to use default
+  sku_tier                  = each.value.sku_tier           # "Free" | "Standard" (AKS Uptime SLA)
+  enable_telemetry          = false
+  oidc_issuer_enabled       = each.value.oidc_issuer_enabled
+  workload_identity_enabled = each.value.workload_identity_enabled
+  azure_policy_enabled      = each.value.azure_policy_enabled
 
-  private_cluster_enabled    = each.value.private_cluster_enabled                    # force replacement of the cluster if changed
+  private_cluster_enabled = each.value.private_cluster_enabled # force replacement of the cluster if changed
   #dns_prefix_private_cluster = "dr-aks-03"
   #private_dns_zone_id        = local.private_dns_ids["aks"] 
   dns_prefix = each.value.dns_prefix
 
-  local_account_disabled = each.value.local_account_disabled
+  local_account_disabled            = each.value.local_account_disabled
   role_based_access_control_enabled = each.value.role_based_access_control_enabled #Enabling Azure Active Directory integration requires that `role_based_access_control_enabled` be set to true."
-  
+
   azure_active_directory_role_based_access_control = (
     try(each.value.azure_active_directory_role_based_access_control, null) == null
     ? null
     : {
-        tenant_id = data.azurerm_client_config.current.tenant_id
-        admin_group_object_ids = each.value.azure_active_directory_role_based_access_control.admin_group_object_ids
-        azure_rbac_enabled = each.value.azure_active_directory_role_based_access_control.azure_rbac_enabled
-      }
-  ) 
-  
+      tenant_id              = data.azurerm_client_config.current.tenant_id
+      admin_group_object_ids = each.value.azure_active_directory_role_based_access_control.admin_group_object_ids
+      azure_rbac_enabled     = each.value.azure_active_directory_role_based_access_control.azure_rbac_enabled
+    }
+  )
+
 
   network_profile = {
     network_plugin      = each.value.network_profile.network_plugin      # "azure" (CNI) or "kubenet"
     network_policy      = each.value.network_profile.network_policy      # "azure" | "calico" (depends on plugin/region)
-    network_data_plane     = each.value.network_profile.network_data_plane     # "cilium" (preview in some regions) or null
+    network_data_plane  = each.value.network_profile.network_data_plane  # "cilium" (preview in some regions) or null
     network_plugin_mode = each.value.network_profile.network_plugin_mode # "overlay"
     dns_service_ip      = each.value.network_profile.dns_service_ip
     service_cidr        = each.value.network_profile.service_cidr
-    outbound_type     = each.value.network_profile.outbound_type # "loadBalancer" | "userDefinedRouting" | "managedNATGateway" | "userAssignedNATGateway"
-    load_balancer_sku = each.value.network_profile.load_balancer_sku     # "Basic" | "standard"
+    outbound_type       = each.value.network_profile.outbound_type     # "loadBalancer" | "userDefinedRouting" | "managedNATGateway" | "userAssignedNATGateway"
+    load_balancer_sku   = each.value.network_profile.load_balancer_sku # "Basic" | "standard"
   }
 
   default_node_pool = {
-    name            = each.value.default_node_pool.name
-    vm_size         = each.value.default_node_pool.vm_size
-    os_disk_size_gb = each.value.default_node_pool.os_disk_size_gb
-    os_disk_type    = each.value.default_node_pool.os_disk_type # "Managed"|"Ephemeral"
-    zones           = try(each.value.default_node_pool.zones, null)
+    name                 = each.value.default_node_pool.name
+    vm_size              = each.value.default_node_pool.vm_size
+    os_disk_size_gb      = each.value.default_node_pool.os_disk_size_gb
+    os_disk_type         = each.value.default_node_pool.os_disk_type # "Managed"|"Ephemeral"
+    zones                = try(each.value.default_node_pool.zones, null)
     min_count            = each.value.default_node_pool.min_count # set both min/max to enable cluster autoscaler
-    type                 = each.value.default_node_pool.type  # "VirtualMachineScaleSets" | "AvailabilitySet"
+    type                 = each.value.default_node_pool.type      # "VirtualMachineScaleSets" | "AvailabilitySet"
     max_count            = each.value.default_node_pool.max_count
     auto_scaling_enabled = each.value.default_node_pool.auto_scaling_enabled
     max_pods             = each.value.default_node_pool.max_pods
@@ -421,15 +421,15 @@ module "avm-res-containerservice-managedcluster" {
   node_resource_group_name = try(each.value.node_resource_group_name, null) # if not specified, node RG will be named MC_<RG>_<clusterName>_<location>
   node_pools = {
     for np_key, np_value in try(each.value.node_pools, {}) : np_key => {
-      name    = np_value.name
-      vm_size = np_value.vm_size
-      mode    = np_value.mode  # "System" | "User"
+      name                 = np_value.name
+      vm_size              = np_value.vm_size
+      mode                 = np_value.mode # "System" | "User"
       min_count            = np_value.min_count
       max_count            = np_value.max_count
       auto_scaling_enabled = np_value.auto_scaling_enabled
       vnet_subnet_id       = np_value.vnet_subnet_id
-      os_sku               = np_value.os_sku       # "Ubuntu" | "CBLMariner"
-      os_type              = np_value.os_type      # "Linux" | "Windows"
+      os_sku               = np_value.os_sku  # "Ubuntu" | "CBLMariner"
+      os_type              = np_value.os_type # "Linux" | "Windows"
       os_disk_size_gb      = np_value.os_disk_size_gb
       os_disk_type         = np_value.os_disk_type # "Managed" | "Ephemeral"
       max_pods             = np_value.max_pods
@@ -438,8 +438,8 @@ module "avm-res-containerservice-managedcluster" {
         ? null
         : { for k, v in np_value.node_labels : k => tostring(v) }
       )
-      node_taints          = try(np_value.node_taints, [])
-      zones                = try(np_value.zones, null)
+      node_taints = try(np_value.node_taints, [])
+      zones       = try(np_value.zones, null)
       upgrade_settings = {
         drain_timeout_in_minutes      = 0
         node_soak_duration_in_minutes = 0
@@ -460,8 +460,8 @@ module "avm-res-containerservice-managedcluster" {
     ? {
       for diag_k, diag in each.value.diagnostic_settings :
       diag_k => {
-        name                  = try(diag.name, null)
-        workspace_resource_id = try(diag.workspace_resource_id, null)
+        name                           = try(diag.name, null)
+        workspace_resource_id          = try(diag.workspace_resource_id, null)
         log_analytics_destination_type = "AzureDiagnostics"
       }
     }
@@ -471,15 +471,15 @@ module "avm-res-containerservice-managedcluster" {
   service_mesh_profile = (
     try(each.value.service_mesh_profile, null) == null
     ? null
-    : { 
-        mode = each.value.service_mesh_profile.mode
-        revisions = each.value.service_mesh_profile.revisions
-        external_ingress_gateway_enabled = each.value.service_mesh_profile.external_ingress_gateway_enabled
-        internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
-     }
+    : {
+      mode                             = each.value.service_mesh_profile.mode
+      revisions                        = each.value.service_mesh_profile.revisions
+      external_ingress_gateway_enabled = each.value.service_mesh_profile.external_ingress_gateway_enabled
+      internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
+    }
   )
   key_vault_secrets_provider = {
-    secret_rotation_enabled = false 
+    secret_rotation_enabled = false
   }
 
   tags = (
@@ -496,4 +496,75 @@ module "avm-res-containerservice-managedcluster" {
   #   subnet_id                           = data.azurerm_subnet.existing["vnet1_manual:snet1"].id # Required if enable_vnet_integration=true
   #   virtual_network_integration_enabled = true
   # }
+}
+
+# API Management service configuration for API gateway and management
+locals {
+  apim_configs = {
+    apim = {
+      name                          = "apim-infy-02"
+      location                      = data.azurerm_resource_group.rg.location
+      resource_group_name           = data.azurerm_resource_group.rg.name
+      publisher_name                = "Infosys"
+      publisher_email               = "v-maeligeti@microsoft.com"
+      sku_name                      = "Developer_1"
+      virtual_network_type          = "Internal"
+      virtual_network_subnet_id     = local.subnet_ids["vnet-primary.snet1"]
+      diagnostic_settings = {
+        diag1 = {
+          name                  = "apim-diag"
+          workspace_resource_id = try(module.law.resource_id, null)
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
+  }
+}
+
+module "avm-res-apimanagement-service" {
+  source                        = "Azure/avm-res-apimanagement-service/azurerm"
+  for_each                      = { for k, v in local.apim_configs : k => v }
+  version                       = "0.0.7"
+  name                          = each.value.name
+  location                      = each.value.location
+  resource_group_name           = each.value.resource_group_name
+  publisher_name                = each.value.publisher_name
+  publisher_email               = each.value.publisher_email
+  sku_name                      = each.value.sku_name
+  enable_telemetry              = false
+  virtual_network_type          = each.value.virtual_network_type
+  virtual_network_subnet_id     = each.value.virtual_network_subnet_id
+  diagnostic_settings = (
+    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
+    ? {
+      for diag_k, diag in each.value.diagnostic_settings :
+      diag_k => {
+        name                           = try(diag.name, null)
+        workspace_resource_id          = try(diag.workspace_resource_id, null)
+        log_analytics_destination_type = "AzureDiagnostics"
+      }
+    }
+    : null
+  )
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+}
+
+module "law" {
+  source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
+  version                                   = "0.4.2"
+  name                                      = "IL-log-cind-test"
+  location                                  = data.azurerm_resource_group.rg.location
+  resource_group_name                       = data.azurerm_resource_group.rg.name
+  log_analytics_workspace_sku               = "PerGB2018"
+  log_analytics_workspace_retention_in_days = 30
+  enable_telemetry                          = false
+  tags = {
+    created_by = "terraform"
+  }
 }
