@@ -214,45 +214,46 @@ locals {
 # }
 locals {
   sqlmi-configs = {
-    # sqlmi_primary = {
-    #   name                = "sql-mk-primary-02"
-    #   location            = data.azurerm_resource_group.rg.location
-    #   resource_group_name = data.azurerm_resource_group.rg.name
-    #   subnet_id = local.subnet_ids["vnet-primary.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
-    #   administrator_login          = "sqladminuser"
-    #   administrator_login_password = "Cricket@#12345678"  #var.sqlmi_adminpass
-    #   sku_name                     = "GP_Gen5"
-    #   vcores                       = 4
-    #   storage_size_in_gb           = 128
-    #   license_type                 = "LicenseIncluded"
-    #   timezone_id                  = "India Standard Time"
-    #   proxy_override               = "Proxy"
-    #   public_data_endpoint_enabled = false
-    #   minimum_tls_version          = "1.2"
-    #   zone_redundant_enabled       = false
-    #   user_assigned_identity_keys  = ["sqlmi"]
-    #   private_endpoints_manage_dns_zone_group = true
-    #   active_directory_administrator = {
-    #     azuread_authentication_only = true
-    #     object_id                   = data.azuread_group.ad_group.object_id
-    #     tenant_id                   = data.azurerm_client_config.current.tenant_id
-    #     login_username              = "infy-test"
-    #   }
-    #   private_endpoints = {
-    #     sqlmipe = {
-    #       name                          = "pvt-endpoint-sqlmi001"
-    #       vnet_key                      = "vnet-primary"
-    #       subnet_key                    = "snet1"
-    #       subresource_name              = "managedInstance"
-    #     }
-    #   }
-    #   # diagnostic_settings = {
-    #   #   di_diag = {
-    #   #     name                  = "diag-di-sqlmi-01"
-    #   #     workspace_resource_id = try(module.law.resource_id, null)
-    #   #   }
-    #   # }
-    # }
+    sqlmi_primary = {
+      name                = "sql-mk-primary-02"
+      location            = data.azurerm_resource_group.rg.location
+      resource_group_name = data.azurerm_resource_group.rg.name
+      subnet_id = local.subnet_ids["vnet-primary.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
+      administrator_login          = "sqladminuser"
+      administrator_login_password = "Cricket@#12345678"  #var.sqlmi_adminpass
+      sku_name                     = "GP_Gen5"
+      vcores                       = 4
+      storage_size_in_gb           = 128
+      license_type                 = "LicenseIncluded"
+      timezone_id                  = "India Standard Time"
+      proxy_override               = "Proxy"
+      public_data_endpoint_enabled = false
+      minimum_tls_version          = "1.2"
+      zone_redundant_enabled       = false
+      database_format              = "AlwaysUpToDate"
+      #user_assigned_identity_keys  = ["sqlmi"]
+      private_endpoints_manage_dns_zone_group = true
+      # active_directory_administrator = {
+      #   azuread_authentication_only = true
+      #   object_id                   = data.azuread_group.ad_group.object_id
+      #   tenant_id                   = data.azurerm_client_config.current.tenant_id
+      #   login_username              = "infy-test"
+      # }
+      private_endpoints = {
+        sqlmipe = {
+          name                          = "pvt-endpoint-sqlmi001"
+          vnet_key                      = "vnet-primary"
+          subnet_key                    = "snet1"
+          subresource_name              = "managedInstance"
+        }
+      }
+      # diagnostic_settings = {
+      #   di_diag = {
+      #     name                  = "diag-di-sqlmi-01"
+      #     workspace_resource_id = try(module.law.resource_id, null)
+      #   }
+      # }
+    }
   }
   sqlmi-configs-secondary = {
     # sqlmi_dr = {

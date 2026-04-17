@@ -136,8 +136,9 @@ module "avm-res-managedidentity-userassignedidentity" {
 
 #This is the module call
 module "sqlmi_primary" {
-  source   = "Azure/avm-res-sql-managedinstance/azurerm"
-  version  = "0.1.3"
+  # source   = "Azure/avm-res-sql-managedinstance/azurerm"
+  # version  = "0.1.3"
+  source = "./avm_sqlmi"
   for_each = { for k, v in local.sqlmi-configs : k => v }
 
   name                         = each.value.name
@@ -158,6 +159,7 @@ module "sqlmi_primary" {
   storage_account_type         = "GRS"
   enable_telemetry             = false
   dns_zone_partner_id          = try(each.value.dns_zone_partner_id, null)
+  database_format              = try(each.value.database_format, null)
 
   managed_identities = {
     user_assigned_resource_ids = toset([
@@ -501,25 +503,25 @@ module "avm-res-containerservice-managedcluster" {
 # API Management service configuration for API gateway and management
 locals {
   apim_configs = {
-    apim = {
-      name                          = "apim-infy-02"
-      location                      = data.azurerm_resource_group.rg.location
-      resource_group_name           = data.azurerm_resource_group.rg.name
-      publisher_name                = "Infosys"
-      publisher_email               = "v-maeligeti@microsoft.com"
-      sku_name                      = "Developer_1"
-      virtual_network_type          = "Internal"
-      virtual_network_subnet_id     = local.subnet_ids["vnet-primary.snet1"]
-      diagnostic_settings = {
-        diag1 = {
-          name                  = "apim-diag"
-          workspace_resource_id = try(module.law.resource_id, null)
-        }
-      }
-      tags = {
-        created_by = "terraform"
-      }
-    }
+    # apim = {
+    #   name                          = "apim-infy-02"
+    #   location                      = data.azurerm_resource_group.rg.location
+    #   resource_group_name           = data.azurerm_resource_group.rg.name
+    #   publisher_name                = "Infosys"
+    #   publisher_email               = "v-maeligeti@microsoft.com"
+    #   sku_name                      = "Developer_1"
+    #   virtual_network_type          = "Internal"
+    #   virtual_network_subnet_id     = local.subnet_ids["vnet-primary.snet1"]
+    #   diagnostic_settings = {
+    #     diag1 = {
+    #       name                  = "apim-diag"
+    #       workspace_resource_id = try(module.law.resource_id, null)
+    #     }
+    #   }
+    #   tags = {
+    #     created_by = "terraform"
+    #   }
+    # }
   }
 }
 
