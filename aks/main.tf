@@ -335,7 +335,7 @@ module "avm-res-containerservice-managedcluster" {
   name                      = each.value.name
   location                  = data.azurerm_resource_group.rg.location
   resource_group_name       = each.value.resource_group_name
-  kubernetes_version        = each.value.kubernetes_version # optional; omit to use default
+  kubernetes_version        = try(each.value.kubernetes_version, null) # optional; omit to use default
   sku_tier                  = each.value.sku_tier           # "Free" | "Standard" (AKS Uptime SLA)
   enable_telemetry          = false
   oidc_issuer_enabled       = each.value.oidc_issuer_enabled
@@ -384,7 +384,7 @@ module "avm-res-containerservice-managedcluster" {
     auto_scaling_enabled = each.value.default_node_pool.auto_scaling_enabled
     max_pods             = each.value.default_node_pool.max_pods
     vnet_subnet_id       = each.value.default_node_pool.vnet_subnet_id
-    orchestrator_version = null # inherit cluster version if null
+    orchestrator_version = try(each.value.default_node_pool.orchestrator_version, null) # inherit cluster version if null
     # Optional
     kubelet_config = {
       cpu_manager_policy        = null
@@ -422,7 +422,7 @@ module "avm-res-containerservice-managedcluster" {
   # Additional user pools (Portal: Node pools → Add node pool)
   node_resource_group_name = try(each.value.node_resource_group_name, null) # if not specified, node RG will be named MC_<RG>_<clusterName>_<location>
   node_pools = {
-    for np_key, np_value in try(each.value.node_pools, {}) : np_key => {
+    for np_key, np_value in each.value.node_pools : np_key => {
       name                 = np_value.name
       vm_size              = np_value.vm_size
       mode                 = np_value.mode # "System" | "User"
@@ -435,6 +435,7 @@ module "avm-res-containerservice-managedcluster" {
       os_disk_size_gb      = np_value.os_disk_size_gb
       os_disk_type         = np_value.os_disk_type # "Managed" | "Ephemeral"
       max_pods             = np_value.max_pods
+      orchestrator_version = try(np_value.orchestrator_version, null) # inherit cluster version if null
       node_labels = (
         try(np_value.node_labels, null) == null
         ? null
@@ -448,6 +449,11 @@ module "avm-res-containerservice-managedcluster" {
         max_surge                     = "10%"
       }
     }
+  }
+
+  upgrade_override = {
+    force_upgrade_enabled = false
+    effective_until      = "2099-12-31T23:59:59Z"
   }
 
   managed_identities = {
@@ -480,6 +486,16 @@ module "avm-res-containerservice-managedcluster" {
       internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
     }
   )
+
+  lock = (
+    try(each.value.lock, null) == null
+    ? null
+    : {
+      kind = each.value.lock.kind
+      name = each.value.lock.name
+    }
+  )
+
   key_vault_secrets_provider = {
     secret_rotation_enabled = false
   }

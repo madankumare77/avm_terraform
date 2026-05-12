@@ -1,22 +1,27 @@
 data "azurerm_resource_group" "rg_aks" {
-  name = "rg-aks-isinfytravel-test"   #Contributor access and RBAC administrator
+  name = "rg-sind-isaksbcmsdrmgmt"   #contributor
 }
  
-data "azurerm_resource_group" "rg_vnet" {
-  name = "rg-cind-mgmt"   #Reader
+data "azurerm_resource_group" "rg_pass" {
+  name = "rg-sind-paas-dr-prod"     #contributor
 }
  
-data "azurerm_resource_group" "rg_vnet_paas" {
-  name = "rg-cind-network-terraform-test"   #Reader
+data "azurerm_resource_group" "rg_sqlmi_dr" {
+  name = "rg-sind-sql-dr-mgmt"     #contributor
 }
  
-data "azurerm_resource_group" "rg_paas" {
-  name = "rg-cind-terraform-paas-test"     #contributor
+data "azurerm_resource_group" "rg_sqlmi_primary" {
+  name = "rg-cind-paas-db-test"     #reader
 }
  
-data "azurerm_storage_account" "aks_diag_st" {
-  name                = "stcinakslogstest" # EPM blob write, storage account key opreator service
-  resource_group_name = "rg-cind-mgmt"    # Reader
+data "azurerm_storage_account" "dr_aks_diag" {
+  name                = "stsinakslogstest"
+  resource_group_name = "rg-sind-ismgmt"      #reader
+}
+ 
+data "azurerm_mssql_managed_instance" "sqlmi_primary" {
+  name                = "db-cind-mi-intranet-test"
+  resource_group_name = data.azurerm_resource_group.rg_sqlmi_primary.name
 }
  
 data "azuread_group" "ad_group" {
@@ -24,48 +29,23 @@ display_name   = "ISEPM-AKS-ADMINS"
 security_enabled = true             #Directory reader
 }
  
- 
-# Data block to reference an existing Log Analytics Workspace
-data "azurerm_log_analytics_workspace" "law" {
-  name                = "IL-InformationSystems-AKS" # rbac administrator, Log Analytics Contributor()
-  resource_group_name = "rg-cind-log-analytics"  #Reader
+data "azurerm_network_ddos_protection_plan" "ddos" {
+  name                = "is-ddos-plan"
+  resource_group_name = "rg-sind-ismgmt"
 }
  
-data "azurerm_log_analytics_workspace" "law_akv" {
-  name                = "IL-cind-law-Keyvault-test" # rbac administrator, Log Analytics Contributor()
-  resource_group_name = "rg-cind-mgmt"  #Reader
-}
  
-data "azurerm_log_analytics_workspace" "law_storage_account" {
-  name                = "IL-cind-storage-test" # rbac administrator, Log Analytics Contributor()
-  resource_group_name = "rg-cind-mgmt"  #Reader
-}
- 
-data "azurerm_log_analytics_workspace" "law_function_app" {
-  name                = "il-cind-paas-logs-mgmt" # rbac administrator, Log Analytics Contributor()
-  resource_group_name = "rg-cind-mgmt"  #Reader
-}
- 
-data "azurerm_key_vault" "kv" {
-  name                = "kv-cind-aksencrpyt-test"       # "rbac administrator,Key Vault Crypto Service Encryption User"
-  resource_group_name = "rg-cind-paas-test"      # Resource group where it exists
-}
- 
-data "azurerm_key_vault_key" "example" {
-  name         = "travel-test"
-  key_vault_id = data.azurerm_key_vault.kv.id
-}
- 
-resource "azurerm_disk_encryption_set" "example" {
-  name                = "isinfytravel-test-set"
-  resource_group_name = data.azurerm_resource_group.rg_aks.name
-  location            = data.azurerm_resource_group.rg_aks.location
-  key_vault_key_id    = data.azurerm_key_vault_key.example.versionless_id
-  encryption_type     = "EncryptionAtRestWithCustomerKey"
-  auto_key_rotation_enabled = true
- 
-  identity {
-    type = "SystemAssigned"
+module "law" {
+  source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
+  version                                   = "0.4.2"
+  name                                      = "IL-InformationSystems-sind-dr"
+  location                                  = data.azurerm_resource_group.rg_pass.location
+  resource_group_name                       = data.azurerm_resource_group.rg_pass.name
+  log_analytics_workspace_sku               = "PerGB2018"
+  log_analytics_workspace_retention_in_days = 30
+  enable_telemetry                          = false
+  tags = {
+    created_by = "terraform"
   }
 }
  
@@ -86,6 +66,14 @@ module "avm_res_network_virtualnetwork" {
  
   enable_telemetry = false
   dns_servers      = (try(each.value.dns_servers, null) == null ? null : { dns_servers = each.value.dns_servers })
+  ddos_protection_plan = (
+    try(each.value.ddos_protection_plan, null) == null
+    ? null
+    : {
+      id = each.value.ddos_protection_plan.id
+      enable = each.value.ddos_protection_plan.enable
+      }
+    )
   # --- Transform your subnet_configs -> module.subnets expected shape ---
   subnets = {
     for sk, s in each.value.subnet_configs : sk => {
@@ -99,8 +87,8 @@ module "avm_res_network_virtualnetwork" {
         }
       ]
  
-      #network_security_group = try((try(s.nsg_key, null) == null ? null : { id = local.nsg_ids[s.nsg_key] }), null)
-      #route_table = try(s.route_table, null)
+      network_security_group = try((try(s.nsg_key, null) == null ? null : { id = local.nsg_ids[s.nsg_key] }), null)
+      route_table = try(s.route_table, null)
  
       # If delegation exists, create list; else empty
       delegations = try([
@@ -133,6 +121,41 @@ data "azurerm_subnet" "existing" {
   virtual_network_name = data.azurerm_virtual_network.existing[each.value.vnet_key].name
 }
  
+#--------------------------------------------------------------------
+# Network Security Group
+#--------------------------------------------------------------------
+module "nsg" {
+  source              = "Azure/avm-res-network-networksecuritygroup/azurerm"
+  version             = "0.5.0"
+  for_each            = { for k, v in local.nsg_create : k => v }
+  name                = each.value.nsg_name
+  resource_group_name = each.value.rg_name
+  location            = each.value.location
+  security_rules      = try(local.nsg_security_rules[each.key], {})
+  enable_telemetry    = false
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+}
+# 4) Lookup only for create_nsg=false
+data "azurerm_network_security_group" "existing" {
+  for_each            = { for k, v in local.nsg_lookup : k => v }
+  name                = each.value.nsg_name
+  resource_group_name = each.value.rg_name
+}
+ 
+module "avm-res-network-routetable" {
+  source  = "Azure/avm-res-network-routetable/azurerm"
+  for_each = { for k, v in local.route_table_configs : k => v }
+  version = "0.4.1"
+  name = each.value.name
+  location = each.value.location
+  resource_group_name = each.value.resource_group_name
+  bgp_route_propagation_enabled = each.value.bgp_route_propagation_enabled
+  enable_telemetry    = false
+}
  
  
 module "avm-res-managedidentity-userassignedidentity" {
@@ -148,6 +171,117 @@ module "avm-res-managedidentity-userassignedidentity" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
+}
+ 
+module "sqlmi_dr" {
+  # source = "Azure/avm-res-sql-managedinstance/azurerm"
+  # version = "0.1.3"
+  source = "./avm_sqlmi"
+  for_each = { for k, v in local.sqlmi-configs-secondary : k => v }
+ 
+  name                         = each.value.name
+  location                     = each.value.location
+  administrator_login          = each.value.administrator_login
+  administrator_login_password = each.value.administrator_login_password
+  resource_group_name          = each.value.resource_group_name
+  sku_name                     = each.value.sku_name
+  vcores                       = each.value.vcores
+  storage_size_in_gb           = each.value.storage_size_in_gb
+  license_type                 = each.value.license_type
+  timezone_id                  = each.value.timezone_id
+  proxy_override               = each.value.proxy_override
+  public_data_endpoint_enabled = each.value.public_data_endpoint_enabled
+  subnet_id                    = each.value.subnet_id
+  minimum_tls_version          = each.value.minimum_tls_version
+  zone_redundant_enabled = each.value.zone_redundant_enabled
+  storage_account_type = each.value.storage_account_type
+  enable_telemetry    = false
+  dns_zone_partner_id = try(each.value.dns_zone_partner_id, null)
+  database_format = each.value.database_format
+ 
+  managed_identities = {
+    user_assigned_resource_ids = toset([
+      for id_key in try(each.value.user_assigned_identity_keys, []) :
+      module.avm-res-managedidentity-userassignedidentity[id_key].resource_id
+    ])
+  }
+ 
+  active_directory_administrator = (
+    try(each.value.active_directory_administrator, null) == null
+    ? null
+    : {
+        azuread_authentication_only = each.value.active_directory_administrator.azuread_authentication_only
+        object_id                   = each.value.active_directory_administrator.object_id
+        tenant_id                   = each.value.active_directory_administrator.tenant_id
+        login_username              = each.value.active_directory_administrator.login_username
+      }
+  )
+ 
+  private_endpoints_manage_dns_zone_group = try(each.value.private_endpoints_manage_dns_zone_group, false)
+  private_endpoints = {
+    for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
+      name                          = try(pe.name, null)
+      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
+      subresource_name              = pe.subresource_name
+      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
+      tags                          = try(pe.tags, null)
+    }
+  }
+ 
+  diagnostic_settings = (
+    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
+    ? {
+      for diag_k, diag in each.value.diagnostic_settings :
+      diag_k => {
+        name                  = try(diag.name, null)
+        workspace_resource_id = try(diag.workspace_resource_id, null)
+        log_analytics_destination_type = "AzureDiagnostics"
+      }
+    }
+    : null
+  )
+ 
+  depends_on = [
+    module.nsg, module.avm_res_network_virtualnetwork
+  ]
+}
+ 
+ 
+# #Peering primary <-> DR VNets
+# resource "azurerm_virtual_network_peering" "primary_to_dr" {
+#   name                      = "peer-primary-to-dr"
+#   resource_group_name       = data.azurerm_resource_group.rg.name
+#   virtual_network_name      = module.avm_res_network_virtualnetwork["vnet-primary"].name     #data.azurerm_virtual_network.existing["vnet1_manual"].name
+#   remote_virtual_network_id = module.avm_res_network_virtualnetwork["vnet-dr"].resource_id
+#   allow_virtual_network_access = true
+#   allow_forwarded_traffic      = true
+#   use_remote_gateways          = false
+#   depends_on = [module.avm_res_network_virtualnetwork]
+# }
+ 
+# resource "azurerm_virtual_network_peering" "dr_to_primary" {
+#   name                      = "peer-dr-to-primary"
+#   resource_group_name       = data.azurerm_resource_group.rg_dr.name
+#   virtual_network_name      = module.avm_res_network_virtualnetwork["vnet-dr"].name
+#   remote_virtual_network_id = module.avm_res_network_virtualnetwork["vnet-primary"].resource_id  #data.azurerm_virtual_network.existing["vnet1_manual"].id
+#   allow_virtual_network_access = true
+#   allow_forwarded_traffic      = true
+#   use_remote_gateways          = false
+#   depends_on = [module.avm_res_network_virtualnetwork]
+# }
+ 
+ 
+resource "azurerm_mssql_managed_instance_failover_group" "example" {
+  name                        = "dbs-sind-mi-test-dr-mgmt"
+  location                    = data.azurerm_resource_group.rg_sqlmi_primary.location
+  managed_instance_id         = data.azurerm_mssql_managed_instance.sqlmi_primary.id
+  partner_managed_instance_id = module.sqlmi_dr["sqlmi_dr"].resource_id
+  secondary_type              = "Geo"
+  read_write_endpoint_failover_policy {
+    mode          = "Automatic"
+    grace_minutes = 60
+  }
+  depends_on = [ module.nsg, module.sqlmi_dr ]
 }
  
  
@@ -180,7 +314,6 @@ module "avm-res-containerservice-managedcluster" {
   dns_prefix                 = each.value.private_cluster_enabled ? null : each.value.dns_prefix
   http_application_routing_enabled = try(each.value.http_application_routing_enabled, null)
   node_os_channel_upgrade = try(each.value.node_os_channel_upgrade, null)
-  disk_encryption_set_id = try(each.value.disk_encryption_set_id, null)
  
   local_account_disabled = each.value.local_account_disabled
   role_based_access_control_enabled = each.value.role_based_access_control_enabled #Enabling Azure Active Directory integration requires that `role_based_access_control_enabled` be set to true."
@@ -286,16 +419,6 @@ module "avm-res-containerservice-managedcluster" {
     }
   }
  
-  oms_agent = (
-    try(each.value.oms_agent, null) == null
-    ? null
-    : {
-        log_analytics_workspace_id = each.value.oms_agent.log_analytics_workspace_id
-        msi_auth_for_monitoring_enabled = each.value.oms_agent.msi_auth_for_monitoring_enabled
-      }
-  )
- 
- 
   managed_identities = {
     user_assigned_resource_ids = toset([
       for id_key in try(each.value.user_assigned_identity_keys, []) :
@@ -320,16 +443,14 @@ module "avm-res-containerservice-managedcluster" {
   service_mesh_profile = (
     try(each.value.service_mesh_profile, null) == null
     ? null
-    : {
+    : { 
         mode = each.value.service_mesh_profile.mode
         revisions = each.value.service_mesh_profile.revisions
         external_ingress_gateway_enabled = each.value.service_mesh_profile.external_ingress_gateway_enabled
         internal_ingress_gateway_enabled = each.value.service_mesh_profile.internal_ingress_gateway_enabled
      }
   )
-  key_vault_secrets_provider = {
-    secret_rotation_enabled = true
-  }
+ 
   tags = (
     try(each.value.tags, null) == null
     ? null
@@ -346,244 +467,6 @@ module "avm-res-containerservice-managedcluster" {
   # }
 }
  
- 
- 
- 
-#--------------------------------------------------------------------
-# rbac Role Assignment
-#--------------------------------------------------------------------
-module "avm-res-authorization-roleassignment" {
-  source  = "Azure/avm-res-authorization-roleassignment/azurerm"
-  version = "0.3.0"
- 
-  role_assignments_azure_resource_manager = {
-    user_identity_privatedns_aks = {
-      scope                = local.private_dns_ids["aks"]
-      role_definition_name = "Private DNS Zone Contributor"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["aks"].principal_id, null)
-    }
-    user_identity_aks_law = {
-      scope                = data.azurerm_log_analytics_workspace.law.id
-      role_definition_name = "Log Analytics Contributor"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["aks"].principal_id, null)
-    }
-    disk_encryption_system_identity_keyvault = {
-      scope                = data.azurerm_key_vault.kv.id
-      role_definition_name = "Key Vault Crypto Service Encryption User"
-      principal_id         = azurerm_disk_encryption_set.example.identity[0].principal_id
-    }
-    aks_spn_vnet_nc = {
-      scope                = local.subnet_ids["vnet_aks.snet_aks"]
-      role_definition_name = "Network Contributor"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["aks"].principal_id, null)
-    }
-    disk_encryption_aks_identity= {
-      scope                = azurerm_disk_encryption_set.example.id
-      role_definition_name = "Contributor"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["aks"].principal_id, null)
-    }
-    user_identity_function_stoage = {
-      scope                = try(module.avm-res-storage-storageaccount["st_paas"].resource_id, null)
-      role_definition_name = "EPM Storage blob writer"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["function"].principal_id, null)
-    }
-    crypto_function_akv = {
-      scope                = try(module.keyvault["kv"].resource_id, null)
-      role_definition_name = "Key Vault Crypto User"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["function"].principal_id, null)
-    }
-    secret_function_akv = {
-      scope                = try(module.keyvault["kv"].resource_id, null)
-      role_definition_name = "Key Vault Secrets User"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["function"].principal_id, null)
-    }
-    certificate_function_akv = {
-      scope                = try(module.keyvault["kv"].resource_id, null)
-      role_definition_name = "Key Vault Certificate User"
-      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["function"].principal_id, null)
-    }
-  }
-  enable_telemetry = false
-}
- 
-#--------------------------------------------------------------------
-# Private DNS zone avm module to create and data block to use existing.
-#--------------------------------------------------------------------
-module "avm-res-network-privatednszone" {
-  source  = "Azure/avm-res-network-privatednszone/azurerm"
-  version = "0.4.4"
-  for_each = {for k, v in local.private_dns_zones : k => v }
-  enable_telemetry      = false
-  domain_name = each.value.private_dns_zone_name
-  parent_id = each.value.parent_id
-  virtual_network_links = {
-    vnet_link = {
-      name                  = "${each.value.private_dns_zone_name}-vnetlink"
-      virtual_network_id    = each.value.vnet_id
-      registration_enabled  = false
-    }
-  }
-}
- 
-#--------------------------------------------------------------------
-#Key Vault
-#--------------------------------------------------------------------
-module "keyvault" {
-  source   = "Azure/avm-res-keyvault-vault/azurerm"
-  version  = "0.10.2"
-  for_each = { for k, v in local.keyvault_configs : k => v }
- 
-  name                            = each.value.name
-  location                        = each.value.location
-  resource_group_name             = each.value.resource_group_name
-  tenant_id                       = data.azurerm_client_config.current.tenant_id
-  sku_name                        = each.value.sku_name
-  soft_delete_retention_days      = each.value.soft_delete_retention_days
-  purge_protection_enabled        = each.value.purge_protection_enabled
-  legacy_access_policies_enabled  = each.value.legacy_access_policies_enabled
-  enabled_for_deployment          = each.value.enabled_for_deployment
-  enabled_for_disk_encryption     = each.value.enabled_for_disk_encryption
-  enabled_for_template_deployment = each.value.enabled_for_template_deployment
-  public_network_access_enabled   = each.value.public_network_access_enabled
-  enable_telemetry                = false
-  # ---- network ACLs: convert vnet/subnet refs -> subnet IDs ----
-  network_acls = merge(
-    try(each.value.network_acls, {}),
-    {
-      virtual_network_subnet_ids = [
-        for r in try(each.value.network_acls.virtual_network_subnet_refs, []) :
-        local.subnet_ids["${r.vnet_key}.${r.subnet_key}"]
-      ]
-    }
-  )
-  # ---- private endpoints: derive subnet_resource_id from vnet1.snet1 etc ----
-  private_endpoints = {
-    for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
-      name                          = try(pe.name, null)
-      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
-      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
-      tags                          = try(pe.tags, null)
-    }
-  }
- 
-  diagnostic_settings = (
-    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
-    ? {
-      for diag_k, diag in each.value.diagnostic_settings :
-      diag_k => {
-        name                  = try(diag.name, null)
-        workspace_resource_id = try(diag.workspace_resource_id, null)
-      }
-    }
-    : null
-  )
-  tags = (
-    try(each.value.tags, null) == null
-    ? null
-    : { for k, v in each.value.tags : k => tostring(v) }
-  )
-}
- 
-#--------------------------------------------------------------------
-# Function App
-#--------------------------------------------------------------------
-module "avm-res-web-site" {
-  source                                         = "Azure/avm-res-web-site/azurerm"
-  for_each                                       = { for k, v in local.function_app_configs : k => v }
-  version                                        = "0.19.1"
-  name                                           = each.value.name
-  location                                       = each.value.location
-  resource_group_name                            = each.value.resource_group_name
-  kind                                           = each.value.kind
-  os_type                                        = each.value.os_type
-  https_only                                     = each.value.https_only
-  service_plan_resource_id                       = each.value.service_plan_resource_id #module.avm-res-web-serverfarm.resource_id
-  storage_account_name                           = each.value.storage_account_name     #module.avm-res-storage-storageaccount["st1"].name
-  public_network_access_enabled                  = each.value.public_network_access_enabled
-  enable_application_insights                    = each.value.enable_application_insights
-  virtual_network_subnet_id                      = each.value.virtual_network_subnet_id
-  ftp_publish_basic_authentication_enabled       = each.value.ftp_publish_basic_authentication_enabled
-  webdeploy_publish_basic_authentication_enabled = each.value.webdeploy_publish_basic_authentication_enabled
-  enable_telemetry                               = each.value.enable_telemetry
-  app_settings = (
-    try(each.value.app_settings, null) == null
-    ? null
-    : { for k, v in each.value.app_settings : k => tostring(v) }
-  )
-  site_config = {
-    always_on         = try(each.value.site_config.always_on, null)
-    application_stack = try(each.value.site_config.application_stack, null)
- 
-    # application_insights_connection_string = (
-    #   each.value.enable_application_insights == true
-    #   ? module.avm-res-insights-component[each.value.site_config.app_insights_key].connection_string
-    #   : null
-    # )
- 
-    # application_insights_key = (
-    #   each.value.enable_application_insights == true
-    #   ? module.avm-res-insights-component[each.value.site_config.app_insights_key].instrumentation_key
-    #   : null
-    # )
-  }
- 
-  diagnostic_settings = (
-    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
-    ? {
-      for diag_k, diag in each.value.diagnostic_settings :
-      diag_k => {
-        name                  = try(diag.name, null)
-        workspace_resource_id = try(diag.workspace_resource_id, null)
-      }
-    }
-    : null
-  )
- 
-# ---- private endpoints: derive subnet_resource_id from vnet1.snet1 etc ----
-  private_endpoints = {
-    for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
-      name                          = try(pe.name, null)
-      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
-      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
-      tags                          = try(pe.tags, null)
-    }
-  }
-  managed_identities = {
-    user_assigned_resource_ids = toset([
-      for id_key in try(each.value.user_assigned_identity_keys, []) :
-      module.avm-res-managedidentity-userassignedidentity[id_key].resource_id
-    ])
-  }
- 
-  tags = (
-    try(each.value.tags, null) == null
-    ? null
-    : { for k, v in each.value.tags : k => tostring(v) }
-  )
-  depends_on = [module.avm-res-storage-storageaccount, module.avm-res-web-serverfarm, module.avm-res-authorization-roleassignment]
-}
- 
-#--------------------------------------------------------------------
-# App Service Plan
-#--------------------------------------------------------------------
-module "avm-res-web-serverfarm" {
-  source              = "Azure/avm-res-web-serverfarm/azurerm"
-  version             = "1.0.0"
-  for_each            = { for k, v in local.app_service_plan : k => v }
-  name                = each.value.name
-  location            = each.value.location
-  resource_group_name = each.value.resource_group_name
-  sku_name            = each.value.sku_name
-  os_type             = each.value.os_type
-  # maximum_elastic_worker_count = each.value.maximum_elastic_worker_count
-  zone_balancing_enabled = each.value.zone_balancing_enabled
-  enable_telemetry    = false
-  tags = (
-    try(each.value.tags, null) == null
-    ? null
-    : { for k, v in each.value.tags : k => tostring(v) }
-  )
-}
  
 #--------------------------------------------------------------------
 # #Storage Account
@@ -677,5 +560,204 @@ module "avm-res-storage-storageaccount" {
     try(each.value.tags, null) == null
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
+  )
+  depends_on = [module.law]
+}
+ 
+#--------------------------------------------------------------------
+#Key Vault
+#--------------------------------------------------------------------
+module "keyvault" {
+  source   = "Azure/avm-res-keyvault-vault/azurerm"
+  version  = "0.10.2"
+  for_each = { for k, v in local.keyvault_configs : k => v }
+ 
+  name                            = each.value.name
+  location                        = each.value.location
+  resource_group_name             = each.value.resource_group_name
+  tenant_id                       = data.azurerm_client_config.current.tenant_id
+  sku_name                        = each.value.sku_name
+  soft_delete_retention_days      = each.value.soft_delete_retention_days
+  purge_protection_enabled        = each.value.purge_protection_enabled
+  legacy_access_policies_enabled  = each.value.legacy_access_policies_enabled
+  enabled_for_deployment          = each.value.enabled_for_deployment
+  enabled_for_disk_encryption     = each.value.enabled_for_disk_encryption
+  enabled_for_template_deployment = each.value.enabled_for_template_deployment
+  public_network_access_enabled   = each.value.public_network_access_enabled
+  enable_telemetry                = false
+  # ---- network ACLs: convert vnet/subnet refs -> subnet IDs ----
+  network_acls = merge(
+    try(each.value.network_acls, {}),
+    {
+      virtual_network_subnet_ids = [
+        for r in try(each.value.network_acls.virtual_network_subnet_refs, []) :
+        local.subnet_ids["${r.vnet_key}.${r.subnet_key}"]
+      ]
+    }
+  )
+  # ---- private endpoints: derive subnet_resource_id from vnet1.snet1 etc ----
+  private_endpoints = {
+    for pe_key, pe in try(each.value.private_endpoints, {}) : pe_key => {
+      name                          = try(pe.name, null)
+      subnet_resource_id            = local.subnet_ids["${pe.vnet_key}.${pe.subnet_key}"]
+      private_dns_zone_resource_ids = try(pe.private_dns_zone_resource_ids, [])
+      tags                          = try(pe.tags, null)
+    }
+  }
+ 
+  diagnostic_settings = (
+    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
+    ? {
+      for diag_k, diag in each.value.diagnostic_settings :
+      diag_k => {
+        name                  = try(diag.name, null)
+        workspace_resource_id = try(diag.workspace_resource_id, null)
+      }
+    }
+    : null
+  )
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+  depends_on = [module.law]
+}
+ 
+#--------------------------------------------------------------------
+# Function App
+#--------------------------------------------------------------------
+module "avm-res-web-site" {
+  source                                         = "Azure/avm-res-web-site/azurerm"
+  for_each                                       = { for k, v in local.function_app_configs : k => v }
+  version                                        = "0.19.1"
+  name                                           = each.value.name
+  location                                       = each.value.location
+  resource_group_name                            = each.value.resource_group_name
+  kind                                           = each.value.kind
+  os_type                                        = each.value.os_type
+  https_only                                     = each.value.https_only
+  service_plan_resource_id                       = each.value.service_plan_resource_id #module.avm-res-web-serverfarm.resource_id
+  storage_account_name                           = each.value.storage_account_name     #module.avm-res-storage-storageaccount["st1"].name
+  public_network_access_enabled                  = each.value.public_network_access_enabled
+  enable_application_insights                    = each.value.enable_application_insights
+  virtual_network_subnet_id                      = each.value.virtual_network_subnet_id
+  ftp_publish_basic_authentication_enabled       = each.value.ftp_publish_basic_authentication_enabled
+  webdeploy_publish_basic_authentication_enabled = each.value.webdeploy_publish_basic_authentication_enabled
+  enable_telemetry                               = each.value.enable_telemetry
+  app_settings = (
+    try(each.value.app_settings, null) == null
+    ? null
+    : { for k, v in each.value.app_settings : k => tostring(v) }
+  )
+  site_config = {
+    always_on         = try(each.value.site_config.always_on, null)
+    application_stack = try(each.value.site_config.application_stack, null)
+ 
+    # application_insights_connection_string = (
+    #   each.value.enable_application_insights == true
+    #   ? module.avm-res-insights-component[each.value.site_config.app_insights_key].connection_string
+    #   : null
+    # )
+ 
+    # application_insights_key = (
+    #   each.value.enable_application_insights == true
+    #   ? module.avm-res-insights-component[each.value.site_config.app_insights_key].instrumentation_key
+    #   : null
+    # )
+  }
+ 
+  managed_identities = {
+    user_assigned_resource_ids = toset([
+      for id_key in try(each.value.user_assigned_identity_keys, []) :
+      module.avm-res-managedidentity-userassignedidentity[id_key].resource_id
+    ])
+  }
+ 
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+  depends_on = [module.avm-res-storage-storageaccount, module.avm-res-web-serverfarm, module.avm-res-authorization-roleassignment]
+}
+ 
+#--------------------------------------------------------------------
+# App Service Plan
+#--------------------------------------------------------------------
+module "avm-res-web-serverfarm" {
+  source              = "Azure/avm-res-web-serverfarm/azurerm"
+  version             = "1.0.0"
+  for_each            = { for k, v in local.app_service_plan : k => v }
+  name                = each.value.name
+  location            = each.value.location
+  resource_group_name = each.value.resource_group_name
+  sku_name            = each.value.sku_name
+  os_type             = each.value.os_type
+  # maximum_elastic_worker_count = each.value.maximum_elastic_worker_count
+  zone_balancing_enabled = each.value.zone_balancing_enabled
+  enable_telemetry    = false
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+}
+ 
+#--------------------------------------------------------------------
+# rbac Role Assignment
+#--------------------------------------------------------------------
+module "avm-res-authorization-roleassignment" {
+  source  = "Azure/avm-res-authorization-roleassignment/azurerm"
+  version = "0.3.0"
+ 
+  role_assignments_azure_resource_manager = {
+    user_identity_function_stoage = {
+      scope                = try(module.avm-res-storage-storageaccount["st_pass_dr"].resource_id, null)
+      role_definition_name = "EPM Storage blob writer"
+      principal_id         = try(module.avm-res-managedidentity-userassignedidentity["function"].principal_id, null)
+    }
+    # user_identity_privatedns_aks = {
+    #   scope                = local.private_dns_ids["aks"]
+    #   role_definition_name = "Contributor"
+    #   principal_id         = try(module.avm-res-managedidentity-userassignedidentity["aks"].principal_id, null)
+    # }
+  }
+  enable_telemetry = false
+}
+ 
+#--------------------------------------------------------------------
+# Private DNS zone avm module to create and data block to use existing.
+#--------------------------------------------------------------------
+module "avm-res-network-privatednszone" {
+  source  = "Azure/avm-res-network-privatednszone/azurerm"
+  version = "0.4.4"
+  for_each = {for k, v in local.private_dns_zones : k => v }
+  enable_telemetry      = false
+  domain_name = each.value.private_dns_zone_name
+  parent_id = each.value.parent_id
+  virtual_network_links = {
+    vnet_link = {
+      name                  = "${each.value.private_dns_zone_name}-vnetlink"
+      virtual_network_id    = each.value.vnet_id
+      registration_enabled  = false
+    }
+  }
+}
+#--------------------------------------------------------------------
+# Private DNS zone avm module to create and data block to use existing.
+#--------------------------------------------------------------------
+locals {
+  private_dns_zones = {
+    aks = {
+      create_private_dns_zone = true
+      private_dns_zone_name = "privatelink.southindia.azmk8s.io"
+      parent_id = data.azurerm_resource_group.rg_aks.id
+      vnet_id               = try(local.vnet_ids["vnet_aks"], null)
+    }
+  }
+  private_dns_ids = merge(
+    { for k, m in module.avm-res-network-privatednszone : k => m.resource_id },
+    #{ for k, d in data.azurerm_private_dns_zone.existing : k => d.id }
   )
 }

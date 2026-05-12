@@ -53,8 +53,8 @@ locals {
       location   = data.azurerm_resource_group.rg.location
       rg_name    = data.azurerm_resource_group.rg.name
 
-      security_rules = [
-                # Management ports
+      security_rules = [     
+        # Management ports
         {
           direction                  = "Inbound"
           name                       = "Allow-HTTPS-Gateway"
@@ -66,24 +66,25 @@ locals {
           access                     = "Allow"
           priority                   = 100
         },
+        # Management port 3443 – ONLY from subnet 10.0.3.0/24
         {
           direction                  = "Inbound"
           name                       = "Allow-Management-3443"
-          source_address_prefix      = "*"
+          source_address_prefix      = "10.0.3.0/24"
           source_port_range          = "*"
           destination_address_prefix = "*"
           destination_port_range     = "3443"
           protocol                   = "Tcp"
           access                     = "Allow"
           priority                   = 110
-        },
+        },      
         {
           direction                  = "Outbound"
           name                       = "Allow-Outbound-HTTPS"
           source_address_prefix      = "*"
           source_port_range          = "*"
           destination_address_prefix = "*"
-          destination_port_range    = "443"
+          destination_port_range     = "443"
           protocol                   = "Tcp"
           access                     = "Allow"
           priority                   = 100
@@ -98,8 +99,228 @@ locals {
           protocol                   = "Udp"
           access                     = "Allow"
           priority                   = 110
+        }
+      ]
+      security_rules = [
+        # -------------------------------------------------
+        # Inbound rules
+        # -------------------------------------------------
+      
+        # Client communication to APIM
+        {
+          name                       = "Allow-Client-HTTP-HTTPS"
+          priority                   = 100
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["80", "443"]
+          source_address_prefix      = "Internet"
+          destination_address_prefix = "VirtualNetwork"
         },
+      
+        # APIM management endpoint
+        {
+          name                       = "Allow-APIM-Management-3443"
+          priority                   = 110
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "3443"
+          source_address_prefix      = "ApiManagement"
+          destination_address_prefix = "VirtualNetwork"
+        },
+      
+        # Azure Load Balancer – infrastructure
+        {
+          name                       = "Allow-AzureLoadBalancer-6390"
+          priority                   = 120
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "6390"
+          source_address_prefix      = "AzureLoadBalancer"
+          destination_address_prefix = "VirtualNetwork"
+        },
+      
+        # Azure Traffic Manager (multi-region)
+        {
+          name                       = "Allow-TrafficManager-443"
+          priority                   = 130
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "AzureTrafficManager"
+          destination_address_prefix = "VirtualNetwork"
+        },
+      
+        # Machine health monitoring
+        {
+          name                       = "Allow-AzureLoadBalancer-6391"
+          priority                   = 140
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "6391"
+          source_address_prefix      = "AzureLoadBalancer"
+          destination_address_prefix = "VirtualNetwork"
+        },
+      
+        # -------------------------------------------------
         # Outbound rules
+        # -------------------------------------------------
+      
+        # Certificate validation
+        {
+          name                       = "Allow-Out-Cert-Validation"
+          priority                   = 200
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "80"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "Internet"
+        },
+      
+        # Azure Storage
+        {
+          name                       = "Allow-Out-Storage-443"
+          priority                   = 210
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "Storage"
+        },
+      
+        # Entra ID / Microsoft Graph / Key Vault dependency
+        {
+          name                       = "Allow-Out-AzureAD-443"
+          priority                   = 220
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureActiveDirectory"
+        },
+      
+        # Managed connectors
+        {
+          name                       = "Allow-Out-AzureConnectors-443"
+          priority                   = 230
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureConnectors"
+        },
+      
+        # Azure SQL
+        {
+          name                       = "Allow-Out-SQL-1433"
+          priority                   = 240
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "1433"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "Sql"
+        },
+      
+        # Azure Key Vault
+        {
+          name                       = "Allow-Out-KeyVault-443"
+          priority                   = 250
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureKeyVault"
+        },
+      
+        # Event Hub (logs)
+        {
+          name                       = "Allow-Out-EventHub"
+          priority                   = 260
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["443", "5671", "5672"]
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "EventHub"
+        },
+      
+        # Azure Monitor
+        {
+          name                       = "Allow-Out-AzureMonitor"
+          priority                   = 270
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["443", "1886"]
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureMonitor"
+        },
+      
+        # -------------------------------------------------
+        # Internal APIM sync / Redis (optional)
+        # -------------------------------------------------
+      
+        # Redis external
+        {
+          name                       = "Allow-Redis-6380"
+          priority                   = 300
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "6380"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "VirtualNetwork"
+        },
+      
+        # Redis internal
+        {
+          name                       = "Allow-Redis-Internal"
+          priority                   = 310
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["6381", "6382", "6383"]
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "VirtualNetwork"
+        },
+      
+        # Rate limit sync
+        {
+          name                       = "Allow-RateLimit-Sync"
+          priority                   = 320
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Udp"
+          source_port_range          = "*"
+          destination_port_range     = "4290"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "VirtualNetwork"
+        }
       ]
       tags = {
         created_by = "terraform"
@@ -214,46 +435,46 @@ locals {
 # }
 locals {
   sqlmi-configs = {
-    sqlmi_primary = {
-      name                = "sql-mk-primary-02"
-      location            = data.azurerm_resource_group.rg.location
-      resource_group_name = data.azurerm_resource_group.rg.name
-      subnet_id = local.subnet_ids["vnet-primary.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
-      administrator_login          = "sqladminuser"
-      administrator_login_password = "Cricket@#12345678"  #var.sqlmi_adminpass
-      sku_name                     = "GP_Gen5"
-      vcores                       = 4
-      storage_size_in_gb           = 128
-      license_type                 = "LicenseIncluded"
-      timezone_id                  = "India Standard Time"
-      proxy_override               = "Proxy"
-      public_data_endpoint_enabled = false
-      minimum_tls_version          = "1.2"
-      zone_redundant_enabled       = false
-      database_format              = "AlwaysUpToDate"
-      #user_assigned_identity_keys  = ["sqlmi"]
-      private_endpoints_manage_dns_zone_group = true
-      # active_directory_administrator = {
-      #   azuread_authentication_only = true
-      #   object_id                   = data.azuread_group.ad_group.object_id
-      #   tenant_id                   = data.azurerm_client_config.current.tenant_id
-      #   login_username              = "infy-test"
-      # }
-      private_endpoints = {
-        sqlmipe = {
-          name                          = "pvt-endpoint-sqlmi001"
-          vnet_key                      = "vnet-primary"
-          subnet_key                    = "snet1"
-          subresource_name              = "managedInstance"
-        }
-      }
-      # diagnostic_settings = {
-      #   di_diag = {
-      #     name                  = "diag-di-sqlmi-01"
-      #     workspace_resource_id = try(module.law.resource_id, null)
-      #   }
-      # }
-    }
+    # sqlmi_primary = {
+    #   name                = "sql-mk-primary-02"
+    #   location            = data.azurerm_resource_group.rg.location
+    #   resource_group_name = data.azurerm_resource_group.rg.name
+    #   subnet_id = local.subnet_ids["vnet-primary.snetmi"]  #subnet should be delegated to Microsoft.Sql/managedInstances and nsg rules applied as per sql mi requirements
+    #   administrator_login          = "sqladminuser"
+    #   administrator_login_password = "Cricket@#12345678"  #var.sqlmi_adminpass
+    #   sku_name                     = "GP_Gen5"
+    #   vcores                       = 4
+    #   storage_size_in_gb           = 128
+    #   license_type                 = "LicenseIncluded"
+    #   timezone_id                  = "India Standard Time"
+    #   proxy_override               = "Proxy"
+    #   public_data_endpoint_enabled = false
+    #   minimum_tls_version          = "1.2"
+    #   zone_redundant_enabled       = false
+    #   database_format              = "AlwaysUpToDate"
+    #   #user_assigned_identity_keys  = ["sqlmi"]
+    #   private_endpoints_manage_dns_zone_group = true
+    #   # active_directory_administrator = {
+    #   #   azuread_authentication_only = true
+    #   #   object_id                   = data.azuread_group.ad_group.object_id
+    #   #   tenant_id                   = data.azurerm_client_config.current.tenant_id
+    #   #   login_username              = "infy-test"
+    #   # }
+    #   private_endpoints = {
+    #     sqlmipe = {
+    #       name                          = "pvt-endpoint-sqlmi001"
+    #       vnet_key                      = "vnet-primary"
+    #       subnet_key                    = "snet1"
+    #       subresource_name              = "managedInstance"
+    #     }
+    #   }
+    #   # diagnostic_settings = {
+    #   #   di_diag = {
+    #   #     name                  = "diag-di-sqlmi-01"
+    #   #     workspace_resource_id = try(module.law.resource_id, null)
+    #   #   }
+    #   # }
+    # }
   }
   sqlmi-configs-secondary = {
     # sqlmi_dr = {
@@ -299,6 +520,93 @@ locals {
 #--------------------------------------------------------------------
 locals {
   aks_configs = {
+    aks_version = {
+      name = "aks-dr-withversion"
+      resource_group_name = data.azurerm_resource_group.rg.name
+      location = data.azurerm_resource_group.rg.location
+      #kubernetes_version         = "1.33.2"
+      sku_tier                   = "Free"
+      oidc_issuer_enabled        = true
+      workload_identity_enabled  = true
+      azure_policy_enabled       = true
+      dns_prefix = "aks-dr-003"
+      local_account_disabled = false
+      user_assigned_identity_keys                    = ["aks"]
+      private_cluster_enabled    = false                    # force replacement of the cluster if changed
+      role_based_access_control_enabled = false                      # force replacement of the cluster if changed
+      # azure_active_directory_role_based_access_control = {
+      #   tenant_id = data.azurerm_client_config.current.tenant_id
+      #   admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
+      #   azure_rbac_enabled = false                        # (false uses Microsoft entra ID authentication with kubernetes RBAC)
+      # }
+      default_node_pool = {
+        name            = "systemnp"
+        vm_size         = "Standard_D4ds_v5"
+        os_disk_size_gb = 128
+        os_disk_type    = "Managed"
+        zones           = ["1"]   #["1", "2", "3"]
+        min_count            = 3
+        type                 = "VirtualMachineScaleSets"
+        max_count            = 5
+        auto_scaling_enabled = true
+        max_pods             = 110
+        vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
+        #orchestrator_version = "1.33.2" # inherit cluster version if null
+        # node_labels = {
+        #   "nodepool-type" = "system"
+        # }
+        node_taints          = ["node=infysvc:NoSchedule"]
+      }
+      #node_resource_group_name = "rg-node3-terraform-aks-cind"    #data.azurerm_resource_group.rg_dr.name   #
+      node_pools = {
+        np1 = {
+          name    = "usernp1"
+          vm_size = "Standard_D4ds_v5"
+          mode    = "User"
+          min_count            = 2
+          max_count            = 10
+          auto_scaling_enabled = true
+          vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
+          os_sku               = "Ubuntu"
+          os_type              = "Linux"
+          os_disk_size_gb      = 128
+          os_disk_type         = "Managed"
+          max_pods             = 110
+          #orchestrator_version = "1.34.4" # inherit cluster version if null
+          # node_labels = {
+          #   "workload" = "apps"
+          # }
+          node_taints          = ["node=infysvc:NoSchedule"]
+          zones                = ["1"]   #["1", "2", "3"]   #
+        }
+      }
+      network_profile = {
+        network_plugin      = "azure" 
+        network_policy      = "cilium" 
+        network_data_plane  = "cilium"
+        network_plugin_mode = "overlay"
+        dns_service_ip      = "10.3.0.10"
+        service_cidr        = "10.3.0.0/24"
+        outbound_type     = "loadBalancer"
+        load_balancer_sku = "standard"
+      }
+      service_mesh_profile = {
+        mode = "Istio"
+        revisions = ["asm-1-27"]
+        external_ingress_gateway_enabled = true
+        internal_ingress_gateway_enabled = true
+      }
+      # diagnostic_settings = {
+      #   di_diag = {
+      #     name                  = "diag-aks-dr-001cd"
+      #     workspace_resource_id = try(module.law.resource_id, null)
+      #   }
+      # }
+      tags = {
+        environment = "testing"
+        created_by  = "terraform"
+      }
+    }
     # aks = {
     #   name = "aks-dr-004"
     #   resource_group_name = data.azurerm_resource_group.rg.name
@@ -384,97 +692,10 @@ locals {
     #   }
 
     # }
-    # aks_03 = {
-    #   name = "aks-dr-003"
+    # aks_without = {
+    #   name = "aks-dr-without"
     #   resource_group_name = data.azurerm_resource_group.rg.name
     #   location = data.azurerm_resource_group.rg.location
-    #   kubernetes_version         = "1.34.2"
-    #   sku_tier                   = "Free"
-    #   oidc_issuer_enabled        = true
-    #   workload_identity_enabled  = true
-    #   azure_policy_enabled       = true
-    #   dns_prefix = "aks-dr-003"
-    #   local_account_disabled = false
-    #   user_assigned_identity_keys                    = ["aks"]
-    #   private_cluster_enabled    = false                    # force replacement of the cluster if changed
-    #   role_based_access_control_enabled = false                      # force replacement of the cluster if changed
-    #   # azure_active_directory_role_based_access_control = {
-    #   #   tenant_id = data.azurerm_client_config.current.tenant_id
-    #   #   admin_group_object_ids = try([data.azuread_group.ad_group.object_id], null)
-    #   #   azure_rbac_enabled = false                        # (false uses Microsoft entra ID authentication with kubernetes RBAC)
-    #   # }
-    #   default_node_pool = {
-    #     name            = "systemnp"
-    #     vm_size         = "Standard_D4ds_v5"
-    #     os_disk_size_gb = 128
-    #     os_disk_type    = "Managed"
-    #     zones           = ["1"]   #["1", "2", "3"]
-    #     min_count            = 3
-    #     type                 = "VirtualMachineScaleSets"
-    #     max_count            = 5
-    #     auto_scaling_enabled = true
-    #     max_pods             = 110
-    #     vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
-    #     # node_labels = {
-    #     #   "nodepool-type" = "system"
-    #     # }
-    #     node_taints          = ["node=infysvc:NoSchedule"]
-    #   }
-    #   #node_resource_group_name = "rg-node3-terraform-aks-cind"    #data.azurerm_resource_group.rg_dr.name   #
-    #   # node_pools = {
-    #   #   np1 = {
-    #   #     name    = "usernp1"
-    #   #     vm_size = "Standard_D4ds_v5"
-    #   #     mode    = "User"
-    #   #     min_count            = 2
-    #   #     max_count            = 10
-    #   #     auto_scaling_enabled = true
-    #   #     vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
-    #   #     os_sku               = "Ubuntu"
-    #   #     os_type              = "Linux"
-    #   #     os_disk_size_gb      = 128
-    #   #     os_disk_type         = "Managed"
-    #   #     max_pods             = 110
-    #   #     # node_labels = {
-    #   #     #   "workload" = "apps"
-    #   #     # }
-    #   #     node_taints          = ["node=infysvc:NoSchedule"]
-    #   #     zones                = ["1"]   #["1", "2", "3"]   #
-    #   #   }
-    #   # }
-    #   network_profile = {
-    #     network_plugin      = "azure" 
-    #     network_policy      = "cilium" 
-    #     network_data_plane  = "cilium"
-    #     network_plugin_mode = "overlay"
-    #     dns_service_ip      = "10.3.0.10"
-    #     service_cidr        = "10.3.0.0/24"
-    #     outbound_type     = "loadBalancer"
-    #     load_balancer_sku = "standard"
-    #   }
-    #   service_mesh_profile = {
-    #     mode = "Istio"
-    #     revisions = ["asm-1-27"]
-    #     external_ingress_gateway_enabled = true
-    #     internal_ingress_gateway_enabled = true
-    #   }
-    #   # diagnostic_settings = {
-    #   #   di_diag = {
-    #   #     name                  = "diag-aks-dr-001cd"
-    #   #     workspace_resource_id = try(module.law.resource_id, null)
-    #   #   }
-    #   # }
-    #   tags = {
-    #     environment = "testing"
-    #     created_by  = "terraform"
-    #   }
-
-    # }
-    # aks_04 = {
-    #   name = "aks-dr-004"
-    #   resource_group_name = data.azurerm_resource_group.rg.name
-    #   location = data.azurerm_resource_group.rg.location
-    #   kubernetes_version         = "1.34.1"
     #   sku_tier                   = "Free"
     #   oidc_issuer_enabled        = true
     #   workload_identity_enabled  = true
@@ -507,27 +728,6 @@ locals {
     #     node_taints          = ["CriticalAddonsOnly=true:NoSchedule"]
     #   }
     #   #node_resource_group_name = "rg-node4-terraform-aks-cind"    #data.azurerm_resource_group.rg_dr.name   #
-    #   node_pools = {
-    #     np1 = {
-    #       name    = "usernp1"
-    #       vm_size = "Standard_D4ds_v5"
-    #       mode    = "User"
-    #       min_count            = 2
-    #       max_count            = 10
-    #       auto_scaling_enabled = true
-    #       vnet_subnet_id       = local.subnet_ids["vnet-primary.snet2"]
-    #       os_sku               = "Ubuntu"
-    #       os_type              = "Linux"
-    #       os_disk_size_gb      = 128
-    #       os_disk_type         = "Managed"
-    #       max_pods             = 110
-    #       node_labels = {
-    #         "app" = "infysvc"
-    #       }
-    #       node_taints          = ["node=infysvc:NoSchedule"]
-    #       zones                = ["1"]     #["1", "2", "3"]   
-    #     }
-    #   }
     #   network_profile = {
     #     network_plugin      = "azure" 
     #     network_policy      = "cilium" 

@@ -9,6 +9,16 @@ locals {
         snet_aks = { name = "snet-cind-node-prod" }
       }
     }
+    vnet_paas = {
+      create_vnet         = false
+      name                = "vnet-cind-paas-internal-prod-02"
+      resource_group_name = data.azurerm_resource_group.rg_vnet_paas.name
+ 
+      existing_subnets = {
+        snet_paas     = { name = "snet-cind-pvt-prod" }
+        snet_function = { name = "snet-cind-func-bcms-prod" }
+      }
+    }
   }
 }
  
@@ -28,6 +38,11 @@ locals {
       name                = "useridentity-isaksbcmsprod"
       location            = data.azurerm_resource_group.rg_aks.location
       resource_group_name = data.azurerm_resource_group.rg_aks.name
+    }
+    function = {
+      name                = "useridentity-function-cind-bcms-prod"
+      location            = data.azurerm_resource_group.rg_paas.location
+      resource_group_name = data.azurerm_resource_group.rg_paas.name
     }
   }
 } 
@@ -221,3 +236,298 @@ locals {
 #     }
 #   }
 # }
+#--------------------------------------------------------------------
+#Key Vault configurations
+#--------------------------------------------------------------------
+locals {
+  keyvault_configs = {
+    kv = {
+      name                = "kv-cind-bcms-prod"
+      location            = data.azurerm_resource_group.rg_paas.location
+      resource_group_name = data.azurerm_resource_group.rg_paas.name
+      sku_name           = "standard"
+      soft_delete_retention_days      = 90
+      purge_protection_enabled        = true
+      legacy_access_policies_enabled  = false
+      enabled_for_deployment          = true
+      enabled_for_disk_encryption     = true
+      enabled_for_template_deployment = true
+      public_network_access_enabled   = false
+      enable_telemetry                = false
+      network_acls = {
+        bypass         = "AzureServices"
+        default_action = "Deny"
+        virtual_network_subnet_refs = [
+          {
+            vnet_key   = "vnet_paas"
+            subnet_key = "snet_paas"
+          }
+        ]
+      }
+      private_endpoints = {
+        kvpe = {
+          name       = "pvt-endpoint-kv-cind-bcms-prod"
+          vnet_key   = "vnet_paas"
+          subnet_key = "snet_paas"
+          private_dns_zone_resource_ids = []
+        }
+      }
+      diagnostic_settings = {
+        kvdiag = {
+          name                  = "diag-settings"
+          workspace_resource_id = try(data.azurerm_log_analytics_workspace.law_akv.id, null) # if you have LA workspace
+        }
+      }
+      tags = {
+        created_by = "terraform"
+        INFY_EA_ResourceName = "kv-cind-bcms-prod"
+        INFY_EA_CustomTag01 = "No Po"
+        INFY_EA_CustomTag02 = "Infosys Limited"
+        INFY_EA_CustomTag03 = "EPMCFG"
+        INFY_EA_CustomTag04 = "PaaS"
+        INFY_EA_ProjectCode = "EPMPRJBE"
+        INFY_EA_Automation = " Yes"
+        INFY_EA_BusinessUnit = "IS"
+        INFY_EA_CostCenter = "No FR_IS"
+        INFY_EA_Purpose = "IS_Internal"
+        INFY_EA_Role = "key vault"
+        INFY_EA_Technical_Tag = "EPM_CFG@infosys.com"
+        INFY_EA_Weekendshutdown = "No"
+        INFY_EA_Workinghours = "00 = 00 23 =59"
+        INFY_EA_WorkLoadType = "Prod"
+      }
+    }
+  }
+}
+ 
+#--------------------------------------------------------------------
+# Function App configurations
+#--------------------------------------------------------------------
+locals {
+  function_app_configs = {
+    function1 = {
+      name                                           = "func-bcms-mailer-prod"
+      location                                       = data.azurerm_resource_group.rg_paas.location
+      resource_group_name                            = data.azurerm_resource_group.rg_paas.name
+      kind                                           = "functionapp"
+      os_type                                        = "Linux"
+      https_only                                     = true
+      service_plan_resource_id                       = try(module.avm-res-web-serverfarm["plan1"].resource_id, null)
+      storage_account_name                           = try(module.avm-res-storage-storageaccount["st_paas"].name, null)
+      public_network_access_enabled                  = false
+      enable_application_insights                    = false
+      virtual_network_subnet_id                      = try(local.subnet_ids["vnet_paas.snet_function"], null)
+      ftp_publish_basic_authentication_enabled       = false
+      webdeploy_publish_basic_authentication_enabled = false
+      user_assigned_identity_keys                    = ["function"]
+      enable_telemetry                               = false
+      site_config = {
+        always_on        = false
+        app_insights_key = "app_insights1"
+        application_stack = {
+          dotnet = { dotnet_version = "10.0" }
+        }
+      }
+      app_settings = {
+        FUNCTIONS_WORKER_RUNTIME = "dotnet"
+        DOTNET_VERSION             = "10.0"
+        # Add more app settings as needed
+      }
+      diagnostic_settings = {
+        diag = {
+          name                  = "diag-logs"
+          workspace_resource_id = try(data.azurerm_log_analytics_workspace.law_function_app.id, null)
+        }
+      }
+      private_endpoints = {
+        functionpe = {
+          name       = "pvt-endpoint-func-bcms-mailer-prod"
+          vnet_key   = "vnet_paas"
+          subnet_key = "snet_paas"
+          #private_dns_zone_resource_ids = []
+        }
+      }
+      tags = {
+        created_by  = "terraform"
+        INFY_EA_Automation = "Yes"
+        INFY_EA_BusinessUnit = "IS"
+        INFY_EA_CostCenter = "No FR_IS"
+        INFY_EA_CustomTag01 = "No PO"
+        INFY_EA_CustomTag02 = "Infosys Limited"
+        INFY_EA_CustomTag03 = "EPMProjects"
+        INFY_EA_CustomTag04 = "PaaS"
+        INFY_EA_ProjectCode = "EPMPRJBE"
+        INFY_EA_Purpose = "IS Internal"
+        INFY_EA_ResourceName = "func-bcms-mailer-prod"
+        INFY_EA_Role = "Function App"
+        INFY_EA_Technical_Tags = "EPM_CFG@infosys.com"
+        INFY_EA_Weekendshutdown = "No"
+        INFY_EA_WorkLoadType = "Prod"
+        INFY_EA_Workinghours = "NA"
+        app_os = "Linux"
+      }
+    }
+    function2 = {
+      name                                           = "func-bcms-cams-prod"
+      location                                       = data.azurerm_resource_group.rg_paas.location
+      resource_group_name                            = data.azurerm_resource_group.rg_paas.name
+      kind                                           = "functionapp"
+      os_type                                        = "Linux"
+      https_only                                     = true
+      service_plan_resource_id                       = try(module.avm-res-web-serverfarm["plan1"].resource_id, null)
+      storage_account_name                           = try(module.avm-res-storage-storageaccount["st_paas"].name, null)
+      public_network_access_enabled                  = false
+      enable_application_insights                    = false
+      virtual_network_subnet_id                      = try(local.subnet_ids["vnet_paas.snet_function"], null)
+      ftp_publish_basic_authentication_enabled       = false
+      webdeploy_publish_basic_authentication_enabled = false
+      user_assigned_identity_keys                    = ["function"]
+      enable_telemetry                               = false
+      site_config = {
+        always_on        = false
+        app_insights_key = "app_insights1"
+        application_stack = {
+          dotnet = { dotnet_version = "10.0" }
+        }
+      }
+      app_settings = {
+        FUNCTIONS_WORKER_RUNTIME = "dotnet"
+        DOTNET_VERSION             = "10.0"
+        # Add more app settings as needed
+      }
+      diagnostic_settings = {
+        diag = {
+          name                  = "diag-logs"
+          workspace_resource_id = try(data.azurerm_log_analytics_workspace.law_function_app.id, null)
+        }
+      }
+      private_endpoints = {
+        functionpe = {
+          name       = "pvt-endpoint-func-bcms-cams-prod"
+          vnet_key   = "vnet_paas"
+          subnet_key = "snet_paas"
+          #private_dns_zone_resource_ids = []
+        }
+      }
+      tags = {
+        created_by  = "terraform"
+        INFY_EA_Automation = "Yes"
+        INFY_EA_BusinessUnit = "IS"
+        INFY_EA_CostCenter = "No FR_IS"
+        INFY_EA_CustomTag01 = "No PO"
+        INFY_EA_CustomTag02 = "Infosys Limited"
+        INFY_EA_CustomTag03 = "EPMProjects"
+        INFY_EA_CustomTag04 = "PaaS"
+        INFY_EA_ProjectCode = "EPMPRJBE"
+        INFY_EA_Purpose = "IS Internal"
+        INFY_EA_ResourceName = "func-bcms-cams-prod"
+        INFY_EA_Role = "Function App"
+        INFY_EA_Technical_Tags = "EPM_CFG@infosys.com"
+        INFY_EA_Weekendshutdown = "No"
+        INFY_EA_WorkLoadType = "Prod"
+        INFY_EA_Workinghours = "NA"
+        app_os = "Linux"
+      }
+    }
+  }
+}
+ 
+#--------------------------------------------------------------------
+# App Service Plan configurations
+#--------------------------------------------------------------------
+locals {
+  app_service_plan = {
+    plan1 = {
+      name                = "asp-cind-bcms-prod"
+      location            = data.azurerm_resource_group.rg_paas.location
+      resource_group_name = data.azurerm_resource_group.rg_paas.name
+      sku_name            = "P1v3"
+      os_type             = "Linux"
+      # maximum_elastic_worker_count = 20
+      zone_balancing_enabled = false
+      enable_telemetry    = false
+      tags = {
+        environment = "prod"
+        created_by  = "terraform"
+      }
+    }
+  }
+}
+ 
+#--------------------------------------------------------------------
+# #Storage Account configurations
+#--------------------------------------------------------------------
+locals {
+  storage_account_configs = {
+    st_paas = {
+      name                              = "stcindbcmsprod"
+      resource_group_name               = data.azurerm_resource_group.rg_paas.name
+      location                          = data.azurerm_resource_group.rg_paas.location
+      account_tier                      = "Standard"
+      account_replication_type          = "LRS"
+      access_tier                       = "Hot"
+      account_kind                      = "StorageV2"
+      allow_nested_items_to_be_public   = false
+      default_to_oauth_authentication   = true
+      https_traffic_only_enabled        = true
+      infrastructure_encryption_enabled = true
+      local_user_enabled                = false
+      min_tls_version                   = "TLS1_2"
+      public_network_access_enabled     = false
+      sftp_enabled                      = false
+      shared_access_key_enabled         = true
+      enable_telemetry                  = false
+      blob_properties = {
+        versioning_enabled            = false
+        container_delete_retention_policy = {
+          enabled = true
+          days    = 7
+        }
+        delete_retention_policy = {
+          days = 7
+          permanent_delete_enabled = true
+        }
+      }
+      network_rules_subnet_refs = [
+        {
+          vnet_key   = "vnet_paas"
+          subnet_key = "snet_paas"
+        }
+      ]
+      private_endpoints = {
+        stpe = {
+          name                          = "pvt-endpoint-stcindbcmsprod"
+          vnet_key                      = "vnet_paas"
+          subnet_key                    = "snet_paas"
+          subresource_name              = "blob"
+          tags                          = { env = "Prod" }
+        }
+      }
+      diagnostic_settings_blob = {
+        stdiag = {
+          name                  = "diag-settings-blob"
+          workspace_resource_id = try(data.azurerm_log_analytics_workspace.law_storage_account.id, null)
+          metric_categories     = ["Transaction", "Capacity"]
+        }
+      }
+      tags = {
+        created_by = "terraform"
+        INFY_EA_ResourceName = "stcindbcmsprod"
+        INFY_EA_CustomTag01 = "No PO"
+        INFY_EA_CustomTag02 = "Infosys Limited"
+        INFY_EA_CustomTag03 = "EPMPRJBE"
+        INFY_EA_CustomTag04 = "PaaS"
+        INFY_EA_Automation = "No"
+        INFY_EA_BusinessUnit = "IS"
+        INFY_EA_CostCenter = "No FR_IS"
+        INFY_EA_Purpose = "IS Internal"
+        INFY_EA_Role = "Storage"
+        INFY_EA_Technical_Tag = "EPM_CFG@infosys.com"
+        INFY_EA_Weekendshutdown = "No"
+        INFY_EA_Workinghours  = "00 =00 23 =59"
+        INFY_EA_WorkLoadType = "Prod"
+        INFY_EA_ProjectCode = "EPMPRJBE"
+      }
+    }
+  }
+}

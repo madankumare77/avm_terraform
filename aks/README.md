@@ -21,7 +21,12 @@
 3. node pool in different rg: AKS will create and own the node resource group (NRG) itself; you must not point it to an existing RG. If the RG already exists—even if it’s empty—AKS returns:
 
 4. taints: we can't able to add taints for default_node_pool due to not available in avm
+5. Kubernetes version update:
+   - Update aks versing using terraform.
+   - Update the control plane version fist.
+   - Update the statem node pool and user node pools post clone plane upgrade.
 
+   
 ### Peniding Items: SQLMI:
 1. active_directory_administrator to enable two things can taken care
    1. Use Microsoft Entra-only authentication - Password not required
