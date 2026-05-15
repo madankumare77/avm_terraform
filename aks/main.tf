@@ -519,25 +519,25 @@ module "avm-res-containerservice-managedcluster" {
 # API Management service configuration for API gateway and management
 locals {
   apim_configs = {
-    # apim = {
-    #   name                          = "apim-infy-02"
-    #   location                      = data.azurerm_resource_group.rg.location
-    #   resource_group_name           = data.azurerm_resource_group.rg.name
-    #   publisher_name                = "Infosys"
-    #   publisher_email               = "v-maeligeti@microsoft.com"
-    #   sku_name                      = "Developer_1"
-    #   virtual_network_type          = "Internal"
-    #   virtual_network_subnet_id     = local.subnet_ids["vnet-primary.snet1"]
-    #   diagnostic_settings = {
-    #     diag1 = {
-    #       name                  = "apim-diag"
-    #       workspace_resource_id = try(module.law.resource_id, null)
-    #     }
-    #   }
-    #   tags = {
-    #     created_by = "terraform"
-    #   }
-    # }
+    apim = {
+      name                          = "apim-infy-test"
+      location                      = data.azurerm_resource_group.rg.location
+      resource_group_name           = data.azurerm_resource_group.rg.name
+      publisher_name                = "Infosys"
+      publisher_email               = "v-maeligeti@microsoft.com"
+      sku_name                      = "Developer_1"
+      virtual_network_type          = "Internal"
+      virtual_network_subnet_id     = local.subnet_ids["vnet-primary.snet1"]
+      diagnostic_settings = {
+        diag1 = {
+          name                  = "apim-diag"
+          workspace_resource_id = try(module.law.resource_id, null)
+        }
+      }
+      tags = {
+        created_by = "terraform"
+      }
+    }
   }
 }
 
