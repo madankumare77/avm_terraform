@@ -1,0 +1,7 @@
+│ Error: creating/updating Service (Subscription: "8d18e83d-3598-4679-a580-6936a7e57638"
+│ Resource Group Name: "rg-infosys-ccd-prod-004"
+│ Service Name: "apim-infosys-ccd-prod-004"): performing CreateOrUpdate: unexpected status 400 (400 Bad Request) with error: ActivateServiceWithPrivateEndpointAccessNotAllowed: Blocking all public network access by setting property `publicNetworkAccess` of API Management service /subscriptions/8d18e83d-3598-4679-a580-6936a7e57638/resourceGroups/rg-infosys-ccd-prod-004/providers/Microsoft.ApiManagement/service/apim-infosys-ccd-prod-004 is not enabled during service creation.
+│
+│   with module.avm-res-apimanagement-service.azurerm_api_management.this,
+│   on .terraform\modules\avm-res-apimanagement-service\main.tf line 1, in resource "azurerm_api_management" "this":
+│    1: resource "azurerm_api_management" "this" {
