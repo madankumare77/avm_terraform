@@ -1,0 +1,15 @@
+## Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate
+.terraform.tfstate.backup
+.terraform.lock.hcl
+
+
+# avm\.terraform/
+# #avm\*.tfstate
+# avm\*.tfstate.*
+# avm\terraform.tfstate
+# avm\.terraform.tfstate.backup
+# #avm\.terraform.lock.hcl
