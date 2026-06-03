@@ -5,3 +5,12 @@
 │   with module.avm-res-apimanagement-service.azurerm_api_management.this,
 │   on .terraform\modules\avm-res-apimanagement-service\main.tf line 1, in resource "azurerm_api_management" "this":
 │    1: resource "azurerm_api_management" "this" {
+
+
+│ {
+│   "error": {
+│     "code": "NetworkSecurityGroupCannotBeAttachedToAzureFirewallSubnet",
+│     "message": "Network security group nsg-default-infosys-prod-004 cannot be attached to firewall subnet AzureFirewallSubnet.",
+│     "details": []
+│   }
+│ }

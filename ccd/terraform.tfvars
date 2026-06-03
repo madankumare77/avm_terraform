@@ -4,6 +4,8 @@ resource_group_location = "centralindia"
 
 # Network Security Group
 nsg_apim_name = "nsg-apim-infosys-prod-004"
+default_nsg_name = "nsg-default-infosys-prod-004"
+pp_secondary_nsg_name = "nsg-pp-secondary-infosys-prod-004"
 
 # Virtual Network
 virtual_network_name = "vnet-infosys-ccd-prod-004"
@@ -49,6 +51,7 @@ pp_enterprise_policy_name = "ep-infosys-ccd-prod-004"
 
 # route table
 route_table_name = "rt-infosys-ccd-prod-004"
+pp_secondary_route_table_name = "rt-pp-secondary-ccd-prod-004"
 
 
 #Service Name: "apim-infosys-ccd-prod-004"): performing CreateOrUpdate: unexpected status 400 (400 Bad Request) with error: ManagingVirtualNetworkConfigurationNotSupported: Setting up 'Internal' Internal Virtual Network Type is not supported for Sku Type 'StandardV2'.
