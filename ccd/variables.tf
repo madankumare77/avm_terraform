@@ -15,6 +15,21 @@ variable "nsg_apim_name" {
   description = "The name of the APIM Network Security Group"
 }
 
+variable "default_nsg_name" {
+  type = string
+  description = "The name of the Default Network Security Group"
+}
+
+variable "pp_secondary_nsg_name" {
+  type = string
+  description = "The name of the secondary Network Security Group"
+}
+
+variable "pp_secondary_route_table_name" {
+  type = string
+  description = "The name of the secondary Route Table"
+}
+
 variable "virtual_network_name" {
   type        = string
   description = "The name of the Virtual Network"

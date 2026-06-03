@@ -45,6 +45,10 @@ module "avm-res-resources-resourcegroup" {
   name     = var.resource_group_name
   location = var.resource_group_location
   enable_telemetry = false
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
 }
 
 ################APIM NSG CCD corp tenant ##############
@@ -254,6 +258,11 @@ module "avm-res-network-networksecuritygroup_apim" {
       destination_address_prefix = "VirtualNetwork"
     }
     }
+
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
   
   depends_on = [module.avm-res-resources-resourcegroup]
 }
@@ -280,6 +289,7 @@ module "avm-res-network-virtualnetwork" {
     subnet1 = {
       name           = "AzureFirewallSubnet"
       address_prefix = var.firewall_subnet_address_prefix
+      service_endpoints_with_location = []
     }
     subnet2 = {
       name           = var.apim_subnet_name
@@ -293,23 +303,18 @@ module "avm-res-network-virtualnetwork" {
       service_endpoints_with_location = [
         {
           service  = "Microsoft.Storage"
-          location = var.resource_group_location
         },
         {
           service  = "Microsoft.Sql"
-          location = var.resource_group_location
         },
         {
           service  = "Microsoft.KeyVault"
-          location = var.resource_group_location
         },
         {
           service  = "Microsoft.EventHub"
-          location = var.resource_group_location
         },
         {
           service  = "Microsoft.AzureActiveDirectory"
-          location = var.resource_group_location
         }
       ]
       network_security_group = {
@@ -323,6 +328,10 @@ module "avm-res-network-virtualnetwork" {
     subnet3 = {
       name           = var.private_endpoint_subnet_name
       address_prefix = var.private_endpoint_subnet_address_prefix
+      service_endpoints_with_location = []
+      network_security_group = {
+        id = module.nsg_default.resource_id
+      }
       route_table = {
         id = azurerm_route_table.apim.id
       }
@@ -330,18 +339,25 @@ module "avm-res-network-virtualnetwork" {
     subnet4 = {
       name           = var.pp_subnet_name
       address_prefix = var.pp_subnet_address_prefix
+      service_endpoints_with_location = []
       delegations = [{
         name = "Microsoft.PowerPlatform.enterprisePolicies"
         service_delegation = {
           name = "Microsoft.PowerPlatform/enterprisePolicies"
         }
       }]
+      network_security_group = {
+        id = module.nsg_default.resource_id
+      }
       route_table = {
         id = azurerm_route_table.apim.id
       }
     }
   }
-
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
     depends_on = [module.avm-res-resources-resourcegroup, module.avm-res-network-networksecuritygroup_apim, azurerm_route_table.apim]
 }
 
@@ -372,6 +388,17 @@ module "avm-res-keyvault-vault" {
         }
     }
     public_network_access_enabled = false
+    tags = {
+      created_by = "terraform"
+      Environment = "CCD-test"
+    }
+
+    diagnostic_settings = {
+      kv_diag = {
+        name               = "kv-diagnostic"
+        workspace_resource_id = module.law.resource_id
+      }
+    }
 
     depends_on = [module.avm-res-resources-resourcegroup, module.avm-res-network-virtualnetwork]
 }
@@ -386,9 +413,30 @@ resource "azurerm_public_ip" "firewall" {
   allocation_method   = "Static"
   sku                 = "Standard"
   zones               = ["1", "2", "3"]
+  ip_tags = {
+    FirstPartyUsage = "/Unprivileged"
+  }
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
 
   depends_on = [module.avm-res-resources-resourcegroup]
 }
+resource "azurerm_monitor_diagnostic_setting" "this" {
+  name                           = "${var.firewall_public_ip_name}-diag"
+  target_resource_id             = azurerm_public_ip.firewall.id
+  log_analytics_destination_type = "Dedicated"
+  log_analytics_workspace_id     = module.law.resource_id
+  enabled_log {
+    category_group = "allLogs"
+  }
+  enabled_metric {
+    category = "AllMetrics"
+  }
+}
+
+
 
 module "avm-res-network-firewallpolicy" {
   source  = "Azure/avm-res-network-firewallpolicy/azurerm"
@@ -398,6 +446,10 @@ module "avm-res-network-firewallpolicy" {
   name                = var.firewall_policy_name
   resource_group_name = module.avm-res-resources-resourcegroup.name
   enable_telemetry    = false
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
 }
 
 
@@ -419,6 +471,16 @@ module "avm-res-network-azurefirewall" {
       subnet_id            = module.avm-res-network-virtualnetwork.subnets["subnet1"].resource_id
       public_ip_address_id = azurerm_public_ip.firewall.id
     }
+  }
+  diagnostic_settings = {
+    fw_diag = {
+      name               = "fw-diagnostic"
+      workspace_resource_id = module.law.resource_id
+    }
+  }
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
   }
 
     depends_on = [module.avm-res-resources-resourcegroup, module.avm-res-network-virtualnetwork, module.avm-res-network-firewallpolicy]
@@ -522,6 +584,18 @@ module "avm-res-apimanagement-service" {
   #     ]
   #   }
   # }
+
+  diagnostic_settings = {
+    apim_diag = {
+      name               = "apim-diagnostic"
+      workspace_resource_id = module.law.resource_id
+    }
+  }
+
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
 
   depends_on = [
     module.avm-res-resources-resourcegroup,
@@ -684,15 +758,25 @@ module "pp_secondary_vnet" {
     pp_subnet = {
       name           = "${var.pp_subnet_name}-${local.pp_secondary_region}"
       address_prefix = var.pp_secondary_subnet_address_prefix
+      service_endpoints_with_location = []
       delegations = [{
         name = "Microsoft.PowerPlatform.enterprisePolicies"
         service_delegation = {
           name = "Microsoft.PowerPlatform/enterprisePolicies"
         }
       }]
+      network_security_group = {
+        id = module.nsg_pp_secondary.resource_id
+      }
+      route_table = {
+        id = azurerm_route_table.pp_secondary.id
+      }
     }
   }
-
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
   depends_on = [module.avm-res-resources-resourcegroup]
 }
 
@@ -758,33 +842,33 @@ resource "azurerm_resource_group_template_deployment" "pp_enterprise_policy" {
     "contentVersion": "1.0.0.0",
     "parameters": {
         "policyName": {
-            "type": "string",
+            "type": "String",
             "metadata": {
                 "description": "The name of the Enterprise Policy."
             }
         },
         "powerplatformEnvironmentRegion": {
-            "type": "string",
+            "type": "String",
             "metadata": {
                 "description": "Geography of the PowerPlatform environment."
             }
         },
         "vNetOneSubnetName": {
-            "type": "string"
+            "type": "String"
         },
         "vNetOneResourceId": {
-            "type": "string",
+            "type": "String",
             "metadata": {
                 "description": "Fully qualified name, such as /subscription/{subscriptionid}/..."
             }
         },
         "vNetTwoSubnetName": {
             "defaultValue": "",
-            "type": "string"
+            "type": "String"
         },
         "vNetTwoResourceId": {
             "defaultValue": "",
-            "type": "string",
+            "type": "String",
             "metadata": {
                 "description": "Fully qualified name, such as /subscription/{subscriptionid}/..."
             }
@@ -838,6 +922,10 @@ resource "azurerm_route_table" "apim" {
   resource_group_name = module.avm-res-resources-resourcegroup.name
 
   depends_on = [module.avm-res-resources-resourcegroup]
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
 }
 
 resource "azurerm_route" "default_to_firewall" {
@@ -861,4 +949,73 @@ resource "azurerm_route" "apim_control_plane" {
   next_hop_type  = "Internet"
 
   depends_on = [azurerm_route_table.apim]
+}
+
+
+module "law" {
+  source                                    = "Azure/avm-res-operationalinsights-workspace/azurerm"
+  version                                   = "0.5.1"
+  name                                      = "IL-log-cind-test"
+  location                                  = module.avm-res-resources-resourcegroup.location
+  resource_group_name                       = module.avm-res-resources-resourcegroup.name
+  log_analytics_workspace_sku               = "PerGB2018"
+  log_analytics_workspace_retention_in_days = 30
+  enable_telemetry                          = false
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
+}
+
+
+module "nsg_default" {
+  # This module creates an Azure Network Security Group
+  # Source: https://registry.terraform.io/modules/Azure/avm-res-network-networksecuritygroup/azurerm/latest
+  source  = "Azure/avm-res-network-networksecuritygroup/azurerm"
+  version = "0.5.1"
+
+  # Network Security Group Configuration
+  name                = var.default_nsg_name
+  location            = var.resource_group_location
+  resource_group_name = module.avm-res-resources-resourcegroup.name
+  enable_telemetry    = false
+
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
+  
+  depends_on = [module.avm-res-resources-resourcegroup]
+}
+
+resource "azurerm_route_table" "pp_secondary" {
+  name                = var.pp_secondary_route_table_name
+  location            = local.pp_secondary_region
+  resource_group_name = module.avm-res-resources-resourcegroup.name
+
+  depends_on = [module.avm-res-resources-resourcegroup]
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
+}
+
+module "nsg_pp_secondary" {
+  # This module creates an Azure Network Security Group
+  # Source: https://registry.terraform.io/modules/Azure/avm-res-network-networksecuritygroup/azurerm/latest
+  source  = "Azure/avm-res-network-networksecuritygroup/azurerm"
+  version = "0.5.1"
+
+  # Network Security Group Configuration
+  name                = var.pp_secondary_nsg_name
+  location            = local.pp_secondary_region
+  resource_group_name = module.avm-res-resources-resourcegroup.name
+  enable_telemetry    = false
+
+  tags = {
+    created_by = "terraform"
+    Environment = "CCD-test"
+  }
+  
+  depends_on = [module.avm-res-resources-resourcegroup]
 }
