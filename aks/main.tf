@@ -554,6 +554,9 @@ module "avm-res-apimanagement-service" {
   enable_telemetry              = false
   virtual_network_type          = each.value.virtual_network_type
   virtual_network_subnet_id     = each.value.virtual_network_subnet_id
+  managed_identities = {
+    system_assigned = true
+  }
   diagnostic_settings = (
     contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
     ? {
