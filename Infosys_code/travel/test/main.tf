@@ -14,6 +14,10 @@ data "azurerm_resource_group" "rg_paas" {
   name = "rg-cind-terraform-paas-test"     #contributor
 }
  
+data "azurerm_resource_group" "rg_apim" {
+  name = "rg-cind-travel-apps-test"     #contributor
+}
+ 
 data "azurerm_storage_account" "aks_diag_st" {
   name                = "stcinakslogstest" # EPM blob write, storage account key opreator service
   resource_group_name = "rg-cind-mgmt"    # Reader
@@ -150,7 +154,34 @@ module "avm-res-managedidentity-userassignedidentity" {
   )
 }
  
- 
+#--------------------------------------------------------------------
+# Network Security Group
+#--------------------------------------------------------------------
+module "nsg" {
+  source              = "Azure/avm-res-network-networksecuritygroup/azurerm"
+  version             = "0.5.0"
+  for_each            = { for k, v in local.nsg_create : k => v }
+  name                = each.value.nsg_name
+  resource_group_name = each.value.rg_name
+  location            = each.value.location
+  security_rules      = try(local.nsg_security_rules[each.key], {})
+  enable_telemetry    = false
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+}
+# 4) Lookup only for create_nsg=false
+data "azurerm_network_security_group" "existing" {
+  for_each            = { for k, v in local.nsg_lookup : k => v }
+  name                = each.value.nsg_name
+  resource_group_name = each.value.rg_name
+}
+resource "azurerm_subnet_network_security_group_association" "apim_subnet_assoc" {
+  subnet_id                 = local.subnet_ids["vnet_apim.snet_apim"]
+  network_security_group_id = local.nsg_ids["nsg_apim"]
+}
 # --------------------------------------------------------------------
 # AKS
 # --------------------------------------------------------------------
@@ -168,7 +199,7 @@ module "avm-res-containerservice-managedcluster" {
   location                   = each.value.location
   resource_group_name        = each.value.resource_group_name
   node_resource_group_name   = try(each.value.node_resource_group_name, null) # if null, module will create one with name "${each.value.name}-node-rg"
-  kubernetes_version         = each.value.kubernetes_version # optional; omit to use default
+  kubernetes_version         = try(each.value.kubernetes_version, null) # optional; omit to use default
   sku_tier                   = each.value.sku_tier   # "Free" | "Standard" (AKS Uptime SLA)
   enable_telemetry           = false    
   oidc_issuer_enabled        = each.value.oidc_issuer_enabled
@@ -258,7 +289,7 @@ module "avm-res-containerservice-managedcluster" {
  
   # Additional user pools (Portal: Node pools → Add node pool)
   node_pools = {
-    for np_key, np_value in try(each.value.node_pools, {}) : np_key => {
+    for np_key, np_value in each.value.node_pools : np_key => {
       name    = np_value.name
       vm_size = np_value.vm_size
       mode    = np_value.mode  # "System" | "User"
@@ -330,6 +361,9 @@ module "avm-res-containerservice-managedcluster" {
   key_vault_secrets_provider = {
     secret_rotation_enabled = true
   }
+  upgrade_override = {
+   force_upgrade_enabled = false
+  }
   tags = (
     try(each.value.tags, null) == null
     ? null
@@ -379,10 +413,10 @@ module "avm-res-authorization-roleassignment" {
     }
     disk_encryption_aks_identity= {
       scope                = azurerm_disk_encryption_set.example.id
-      role_definition_name = "Contributor"
+      role_definition_name = "Reader"
       principal_id         = try(module.avm-res-managedidentity-userassignedidentity["aks"].principal_id, null)
     }
-    user_identity_function_stoage = {
+    user_identity_function_storage = {
       scope                = try(module.avm-res-storage-storageaccount["st_paas"].resource_id, null)
       role_definition_name = "EPM Storage blob writer"
       principal_id         = try(module.avm-res-managedidentity-userassignedidentity["function"].principal_id, null)
@@ -678,4 +712,42 @@ module "avm-res-storage-storageaccount" {
     ? null
     : { for k, v in each.value.tags : k => tostring(v) }
   )
+}
+ 
+ 
+ 
+module "avm-res-apimanagement-service" {
+  source                        = "Azure/avm-res-apimanagement-service/azurerm"
+  for_each                      = { for k, v in local.apim_configs : k => v }
+  version                       = "0.0.7"
+  name                          = each.value.name
+  location                      = each.value.location
+  resource_group_name           = each.value.resource_group_name
+  publisher_name                = each.value.publisher_name
+  publisher_email               = each.value.publisher_email
+  sku_name                      = each.value.sku_name
+  enable_telemetry              = false
+  virtual_network_type          = each.value.virtual_network_type
+  virtual_network_subnet_id     = each.value.virtual_network_subnet_id
+  diagnostic_settings = (
+    contains(keys(each.value), "diagnostic_settings") && length(each.value.diagnostic_settings) > 0
+    ? {
+      for diag_k, diag in each.value.diagnostic_settings :
+      diag_k => {
+        name                           = try(diag.name, null)
+        workspace_resource_id          = try(diag.workspace_resource_id, null)
+        log_analytics_destination_type = "AzureDiagnostics"
+      }
+    }
+    : null
+  )
+  managed_identities = {
+    system_assigned = true
+  }
+  tags = (
+    try(each.value.tags, null) == null
+    ? null
+    : { for k, v in each.value.tags : k => tostring(v) }
+  )
+  depends_on = [ module.nsg ]
 }

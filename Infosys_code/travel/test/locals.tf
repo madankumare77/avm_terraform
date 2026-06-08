@@ -19,6 +19,15 @@ locals {
         snet_function = { name = "snet-cind-func-travel-test" }
       }
     }
+    vnet_apim = {
+      create_vnet         = false
+      name                = "vnet-cind-travel-apim-test"
+      resource_group_name = data.azurerm_resource_group.rg_apim.name
+ 
+      existing_subnets = {
+        snet_apim     = { name = "snet-cind-apim-test" }
+      }
+    }
   }
 }
  
@@ -27,6 +36,250 @@ locals {
 #--------------------------------------------------------------------
 locals {
   nsg_configs = {
+    nsg_apim = {
+      create_nsg = true
+      nsg_name   = "apim-cind-travel-apps-test-nsg"
+      location   = data.azurerm_resource_group.rg_apim.location
+      rg_name    = data.azurerm_resource_group.rg_apim.name
+ 
+      security_rules = [
+        # -------------------------------------------------
+        # Inbound rules
+        # -------------------------------------------------
+     
+        # Client communication to APIM
+        {
+          name                       = "Allow-Client-HTTP-HTTPS"
+          priority                   = 100
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["80", "443"]
+          source_address_prefix      = "Internet"
+          destination_address_prefix = "VirtualNetwork"
+        },
+     
+        # APIM management endpoint
+        {
+          name                       = "Allow-APIM-Management-3443"
+          priority                   = 110
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "3443"
+          source_address_prefix      = "ApiManagement"
+          destination_address_prefix = "VirtualNetwork"
+        },
+     
+        # Azure Load Balancer – infrastructure
+        {
+          name                       = "Allow-AzureLoadBalancer-6390"
+          priority                   = 120
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "6390"
+          source_address_prefix      = "AzureLoadBalancer"
+          destination_address_prefix = "VirtualNetwork"
+        },
+     
+        # Azure Traffic Manager (multi-region)
+        {
+          name                       = "Allow-TrafficManager-443"
+          priority                   = 130
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "AzureTrafficManager"
+          destination_address_prefix = "VirtualNetwork"
+        },
+     
+        # Machine health monitoring
+        {
+          name                       = "Allow-AzureLoadBalancer-6391"
+          priority                   = 140
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "6391"
+          source_address_prefix      = "AzureLoadBalancer"
+          destination_address_prefix = "VirtualNetwork"
+        },
+     
+        # -------------------------------------------------
+        # Outbound rules
+        # -------------------------------------------------
+     
+        # Certificate validation
+        {
+          name                       = "Allow-Out-Cert-Validation"
+          priority                   = 200
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "80"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "Internet"
+        },
+     
+        # Azure Storage
+        {
+          name                       = "Allow-Out-Storage-443"
+          priority                   = 210
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "Storage"
+        },
+     
+        # Entra ID / Microsoft Graph / Key Vault dependency
+        {
+          name                       = "Allow-Out-AzureAD-443"
+          priority                   = 220
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureActiveDirectory"
+        },
+     
+        # Managed connectors
+        {
+          name                       = "Allow-Out-AzureConnectors-443"
+          priority                   = 230
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureConnectors"
+        },
+     
+        # Azure SQL
+        {
+          name                       = "Allow-Out-SQL-1433"
+          priority                   = 240
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "1433"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "Sql"
+        },
+     
+        # Azure Key Vault
+        {
+          name                       = "Allow-Out-KeyVault-443"
+          priority                   = 250
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "443"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureKeyVault"
+        },
+     
+        # Event Hub (logs)
+        {
+          name                       = "Allow-Out-EventHub"
+          priority                   = 260
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["443", "5671", "5672"]
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "EventHub"
+        },
+     
+        # Azure Monitor
+        {
+          name                       = "Allow-Out-AzureMonitor"
+          priority                   = 270
+          direction                  = "Outbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["443", "1886"]
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "AzureMonitor"
+        },
+     
+        # -------------------------------------------------
+        # Internal APIM sync / Redis (optional)
+        # -------------------------------------------------
+     
+        # Redis external
+        {
+          name                       = "Allow-Redis-6380"
+          priority                   = 300
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_range     = "6380"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "VirtualNetwork"
+        },
+     
+        # Redis internal
+        {
+          name                       = "Allow-Redis-Internal"
+          priority                   = 310
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Tcp"
+          source_port_range          = "*"
+          destination_port_ranges    = ["6381", "6382", "6383"]
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "VirtualNetwork"
+        },
+     
+        # Rate limit sync
+        {
+          name                       = "Allow-RateLimit-Sync"
+          priority                   = 320
+          direction                  = "Inbound"
+          access                     = "Allow"
+          protocol                   = "Udp"
+          source_port_range          = "*"
+          destination_port_range     = "4290"
+          source_address_prefix      = "VirtualNetwork"
+          destination_address_prefix = "VirtualNetwork"
+        }
+      ]
+      tags = {
+        created_by = "terraform"
+        INFY_EA_Automation = "Yes"
+        INFY_EA_BusinessUnit = "IS"
+        INFY_EA_CostCenter = "No FR_IS"
+        INFY_EA_CustomTag01 = "No PO"
+        INFY_EA_CustomTag02 = "Infosys Limited"
+        INFY_EA_CustomTag03 = "EPMProjects"
+        INFY_EA_CustomTag04 = "PaaS"
+        INFY_EA_ProjectCode = "EPMPRJBE"
+        INFY_EA_Purpose = "IS Internal"
+        INFY_EA_ResourceName = "apim-cind-travel-apps-test-nsg"
+        INFY_EA_Role = "network sequrity group"
+        INFY_EA_Technical_Tags = "EPM-Cloud@infosys.com"
+        INFY_EA_WorkLoadType = "Test"
+      }
+    }
   }
 }
  
@@ -76,7 +329,7 @@ locals {
       resource_group_name = data.azurerm_resource_group.rg_aks.name
       location = data.azurerm_resource_group.rg_aks.location
       node_resource_group_name   = "rg-aks-assets-isinfytravel-test"
-      kubernetes_version         = "1.33.5"
+     # kubernetes_version         = "1.35.1"  
       sku_tier                   = "Standard"
       oidc_issuer_enabled        = true
       workload_identity_enabled  = true
@@ -222,7 +475,53 @@ locals {
  
   subnet_ids = merge(local.created_subnet_ids, local.existing_subnet_ids)
 }
+#--------------------------------------------------------------------
+# NSG Locals to check the condition to create or use existing
+#--------------------------------------------------------------------
+locals {
+  # 1) Split: create vs lookup
+  nsg_create = {
+    for k, v in local.nsg_configs : k => v
+    if try(v.create_nsg, true)
+  }
  
+  nsg_lookup = {
+    for k, v in local.nsg_configs : k => v
+    if !try(v.create_nsg, true)
+  }
+ 
+  # 2) Convert rules list -> map keyed by rule name
+  nsg_security_rules = {
+    for nsg_key, nsg in local.nsg_create : nsg_key => {
+      for r in try(nsg.security_rules, []) : r.name => {
+        # required fields
+        name      = r.name
+        priority  = r.priority
+        direction = r.direction
+        access    = r.access
+        protocol  = r.protocol
+ 
+        # optional fields (pass only if present)
+        source_address_prefix      = try(r.source_address_prefix, null)
+        destination_address_prefix = try(r.destination_address_prefix, null)
+ 
+        source_port_range      = try(r.source_port_range, null)
+        destination_port_range = try(r.destination_port_range, null)
+        source_address_prefixes      = try(r.source_address_prefixes, null)
+        destination_address_prefixes = try(r.destination_address_prefixes, null)
+        source_port_ranges           = try(r.source_port_ranges, null)
+        destination_port_ranges      = try(r.destination_port_ranges, null)
+ 
+        description = try(r.description, null)
+      }
+    }
+  }
+  # 5) Unified outputs (IDs of created + existing)
+  nsg_ids = merge(
+    { for k, m in module.nsg : k => m.resource_id },
+    { for k, d in data.azurerm_network_security_group.existing : k => d.id }
+  )
+}
 #--------------------------------------------------------------------
 #Key Vault configurations
 #--------------------------------------------------------------------
@@ -312,11 +611,14 @@ locals {
         always_on        = false
         app_insights_key = "app_insights1"
         application_stack = {
-          dotnet = { dotnet_version = "10.0" }
+          dotnet = {
+            dotnet_version = "10.0"
+            use_dotnet_isolated_runtime = true
+             }
         }
       }
       app_settings = {
-        FUNCTIONS_WORKER_RUNTIME = "dotnet"
+        FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
         DOTNET_VERSION             = "10.0"
         # Add more app settings as needed
       }
@@ -374,11 +676,14 @@ locals {
         always_on        = false
         app_insights_key = "app_insights1"
         application_stack = {
-          dotnet = { dotnet_version = "10.0" }
+          dotnet = {
+            dotnet_version = "10.0"
+            use_dotnet_isolated_runtime = true
+            }
         }
       }
       app_settings = {
-        FUNCTIONS_WORKER_RUNTIME = "dotnet"
+        FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
         DOTNET_VERSION             = "10.0"
         # Add more app settings as needed
       }
@@ -436,11 +741,14 @@ locals {
         always_on        = false
         app_insights_key = "app_insights1"
         application_stack = {
-          dotnet = { dotnet_version = "10.0" }
+          dotnet = {
+             dotnet_version = "10.0"
+             use_dotnet_isolated_runtime = true
+              }
         }
       }
       app_settings = {
-        FUNCTIONS_WORKER_RUNTIME = "dotnet"
+        FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
         DOTNET_VERSION             = "10.0"
         # Add more app settings as needed
       }
@@ -498,11 +806,14 @@ locals {
         always_on        = false
         app_insights_key = "app_insights1"
         application_stack = {
-          dotnet = { dotnet_version = "10.0" }
+          dotnet = {
+            dotnet_version = "10.0"
+            use_dotnet_isolated_runtime = true
+            }
         }
       }
       app_settings = {
-        FUNCTIONS_WORKER_RUNTIME = "dotnet"
+        FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
         DOTNET_VERSION             = "10.0"
         # Add more app settings as needed
       }
@@ -560,11 +871,14 @@ locals {
         always_on        = false
         app_insights_key = "app_insights1"
         application_stack = {
-          dotnet = { dotnet_version = "10.0" }
+          dotnet = {
+            dotnet_version = "10.0"
+            use_dotnet_isolated_runtime = true
+            }
         }
       }
       app_settings = {
-        FUNCTIONS_WORKER_RUNTIME = "dotnet"
+        FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
         DOTNET_VERSION             = "10.0"
         # Add more app settings as needed
       }
@@ -647,7 +961,7 @@ locals {
       min_tls_version                   = "TLS1_2"
       public_network_access_enabled     = false
       sftp_enabled                      = false
-      shared_access_key_enabled         = true
+      shared_access_key_enabled         = false
       enable_telemetry                  = false
       blob_properties = {
         versioning_enabled            = false
@@ -702,4 +1016,47 @@ locals {
       }
     }
   }
+}
+ 
+# API Management service configuration for API gateway and management
+locals {
+  apim_configs = {
+    apim = {
+      name                          = "apim-cind-travel-apps-test"
+      location                      = data.azurerm_resource_group.rg_apim.location
+      resource_group_name           = data.azurerm_resource_group.rg_apim.name
+      publisher_name                = "Infosys"
+      publisher_email               = var.travel_test_publisher_email
+      sku_name                      = "Developer_1"
+      virtual_network_type          = "Internal"
+      virtual_network_subnet_id     = local.subnet_ids["vnet_apim.snet_apim"]
+      diagnostic_settings = {
+        diag1 = {
+          name                  = "apim-diag"
+          workspace_resource_id = try(data.azurerm_log_analytics_workspace.law_function_app.id, null)
+        }
+      }
+      tags = {
+        created_by = "terraform"
+        INFY_EA_Automation = "Yes"
+        INFY_EA_BusinessUnit = "IS"
+        INFY_EA_CostCenter = "No FR_IS"
+        INFY_EA_CustomTag01 = "No PO"
+        INFY_EA_CustomTag02 = "Infosys Limited"
+        INFY_EA_CustomTag03 = "EPMProjects"
+        INFY_EA_CustomTag04 = "PaaS"
+        INFY_EA_ProjectCode = "EPMPRJBE"
+        INFY_EA_Purpose = "IS Internal"
+        INFY_EA_ResourceName = "apim-cind-travel-apps-test"
+        INFY_EA_Role = "api Management"
+        INFY_EA_Technical_Tags = "EPM_CFG@infosys.com"
+        INFY_EA_WorkLoadType = "Test"
+      }
+    }
+  }
+}
+
+variable "travel_test_publisher_email" {
+  type = string
+  default = ""
 }
