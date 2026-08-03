@@ -1,0 +1,79 @@
+trigger:
+  branches:
+    include:
+      - adf_publish
+
+pr: none
+
+variables:
+  azureServiceConnection: 'mk-prod-service-connection'
+  subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+  prodResourceGroupName: 'rg-prod-adf'
+  prodDataFactoryName: 'mk-prod-01'
+  location: 'centralindia'
+
+  armTemplateFile: 'ARMTemplateForFactory.json'
+  armParameterFile: 'parameters/prod.parameters.json'
+  prePostScriptFile: 'scripts/PrePostDeploymentScript.Ver2.ps1'
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: Deploy_Prod_ADF
+  displayName: 'Deploy ADF to Production'
+  jobs:
+  - deployment: DeployADF
+    displayName: 'Deploy ARM template to mk-prod-01'
+    environment: 'prod-adf'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: AzurePowerShell@5
+            displayName: 'Pre-deployment: Stop ADF triggers'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              ScriptType: 'FilePath'
+              ScriptPath: '$(Build.SourcesDirectory)/$(prePostScriptFile)'
+              ScriptArguments: >
+                -armTemplate "$(Build.SourcesDirectory)/$(armTemplateFile)"
+                -ResourceGroupName "$(prodResourceGroupName)"
+                -DataFactoryName "$(prodDataFactoryName)"
+                -predeployment $true
+                -deleteDeployment $false
+              azurePowerShellVersion: 'LatestVersion'
+              pwsh: true
+
+          - task: AzureResourceManagerTemplateDeployment@3
+            displayName: 'Deploy ADF ARM template to Prod'
+            inputs:
+              deploymentScope: 'Resource Group'
+              azureResourceManagerConnection: '$(azureServiceConnection)'
+              subscriptionId: '$(subscriptionId)'
+              action: 'Create Or Update Resource Group'
+              resourceGroupName: '$(prodResourceGroupName)'
+              location: '$(location)'
+              templateLocation: 'Linked artifact'
+              csmFile: '$(Build.SourcesDirectory)/$(armTemplateFile)'
+              csmParametersFile: '$(Build.SourcesDirectory)/$(armParameterFile)'
+              overrideParameters: >
+                -factoryName "$(prodDataFactoryName)"
+              deploymentMode: 'Incremental'
+
+          - task: AzurePowerShell@5
+            displayName: 'Post-deployment: Start ADF triggers'
+            inputs:
+              azureSubscription: '$(azureServiceConnection)'
+              ScriptType: 'FilePath'
+              ScriptPath: '$(Build.SourcesDirectory)/$(prePostScriptFile)'
+              ScriptArguments: >
+                -armTemplate "$(Build.SourcesDirectory)/$(armTemplateFile)"
+                -ResourceGroupName "$(prodResourceGroupName)"
+                -DataFactoryName "$(prodDataFactoryName)"
+                -predeployment $false
+                -deleteDeployment $true
+              azurePowerShellVersion: 'LatestVersion'
+              pwsh: true

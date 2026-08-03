@@ -31,5 +31,5 @@ enable_cognitiveservices = false  # Creates Azure Cognitive Services account (Do
 enable_cosmosdb_account  = false  # Creates Azure CosmosDB account request unit database
 
 
-enable_role_assignments = true  # Enables role assignments module to assign roles to resources
+enable_role_assignments = false  # Enables role assignments module to assign roles to resources
 enable_private_dns_zone = false  # Enable private dns zone to create or use existing.

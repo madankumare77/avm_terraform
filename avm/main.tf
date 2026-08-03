@@ -338,6 +338,7 @@ module "avm-res-web-serverfarm" {
   resource_group_name = each.value.resource_group_name
   sku_name            = each.value.sku_name
   os_type             = each.value.os_type
+  zone_balancing_enabled = try(each.value.zone_balancing_enabled, null)
   enable_telemetry    = false
   tags = (
     try(each.value.tags, null) == null

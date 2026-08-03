@@ -533,6 +533,7 @@ module "avm-res-web-site" {
   https_only                                     = each.value.https_only
   service_plan_resource_id                       = each.value.service_plan_resource_id #module.avm-res-web-serverfarm.resource_id
   storage_account_name                           = each.value.storage_account_name     #module.avm-res-storage-storageaccount["st1"].name
+  storage_account_access_key                     = try(each.value.storage_account_access_key, null) #module.avm-res-storage-storageaccount["st1"].primary_access_key
   public_network_access_enabled                  = each.value.public_network_access_enabled
   enable_application_insights                    = each.value.enable_application_insights
   virtual_network_subnet_id                      = each.value.virtual_network_subnet_id

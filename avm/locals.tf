@@ -31,7 +31,7 @@ locals {
         snet3 = {
           name              = "snet3-test"
           address_prefix    = ["10.0.3.0/24"]
-          service_endpoints = ["Microsoft.Web"]
+          service_endpoints = ["Microsoft.Web", "Microsoft.Storage"]
           nsg_key           = "nsg1"
 
           delegation = {
@@ -176,6 +176,20 @@ locals {
           subresource_name              = "blob"
           tags                          = { env = "test" }
         }
+        stpe_file = {
+          name                          = "pe-st003testinfy-file"
+          vnet_key                      = "vnet1"
+          subnet_key                    = "snet2"
+          subresource_name              = "file"
+          tags                          = { env = "test" }
+        }
+        stpe_table = {
+          name                          = "pe-st003testinfy-table"
+          vnet_key                      = "vnet1"
+          subnet_key                    = "snet2"
+          subresource_name              = "table"
+          tags                          = { env = "test" }
+        }
       }
       diagnostic_settings_blob = {
         stdiag = {
@@ -196,8 +210,42 @@ locals {
 #--------------------------------------------------------------------
 locals {
   function_app_configs = {
+    # function1 = {
+    #   name                                           = "infy-claims-function-app"
+    #   location                                       = data.azurerm_resource_group.rg.location
+    #   resource_group_name                            = data.azurerm_resource_group.rg.name
+    #   kind                                           = "functionapp"
+    #   os_type                                        = "Linux"
+    #   https_only                                     = true
+    #   service_plan_resource_id                       = try(module.avm-res-web-serverfarm["plan1"].resource_id, null)
+    #   storage_account_name                           = try(module.avm-res-storage-storageaccount["st1"].name, null)
+    #   public_network_access_enabled                  = false
+    #   enable_application_insights                    = false
+    #   virtual_network_subnet_id                      = try(local.subnet_ids["vnet1.snet3"], null)
+    #   ftp_publish_basic_authentication_enabled       = false
+    #   webdeploy_publish_basic_authentication_enabled = false
+    #   user_assigned_identity_keys                    = ["function"]
+    #   enable_telemetry                               = false
+    #   site_config = {
+    #     always_on        = false
+    #     app_insights_key = "app_insights1"
+    #     application_stack = {
+    #       java = { java_version = "21" }
+    #       #dotnet_core = { dotnet_core_version = "v4.0" }
+    #     }
+    #   }
+    #   app_settings = {
+    #     FUNCTIONS_WORKER_RUNTIME = "java"
+    #     JAVA_VERSION             = "21"
+    #     # Add more app settings as needed
+    #   }
+    #   tags = {
+    #     environment = "testing"
+    #     created_by  = "terraform"
+    #   }
+    # }
     function1 = {
-      name                                           = "infy-claims-function-app"
+      name                                           = "func-travel-utility-mk"
       location                                       = data.azurerm_resource_group.rg.location
       resource_group_name                            = data.azurerm_resource_group.rg.name
       kind                                           = "functionapp"
@@ -216,17 +264,32 @@ locals {
         always_on        = false
         app_insights_key = "app_insights1"
         application_stack = {
-          java = { java_version = "21" }
-          #dotnet_core = { dotnet_core_version = "v4.0" }
+          dotnet = {
+            dotnet_version = "8.0"
+            use_dotnet_isolated_runtime = true
+             }
         }
       }
-      app_settings = {
-        FUNCTIONS_WORKER_RUNTIME = "java"
-        JAVA_VERSION             = "21"
-        # Add more app settings as needed
-      }
+      # app_settings = {
+      #   FUNCTIONS_WORKER_RUNTIME = "dotnet-isolated"
+      #   DOTNET_VERSION             = "10.0"
+      #   # Add more app settings as needed
+      # }
+      # diagnostic_settings = {
+      #   diag = {
+      #     name                  = "diag-logs"
+      #     workspace_resource_id = try(data.azurerm_log_analytics_workspace.law_function_app.id, null)
+      #   }
+      # }
+      # private_endpoints = {
+      #   functionpe = {
+      #     name       = "pvt-endpoint-func-travel-utility-test"
+      #     vnet_key   = "vnet_paas"
+      #     subnet_key = "snet_paas"
+      #     #private_dns_zone_resource_ids = []
+      #   }
+      # }
       tags = {
-        environment = "testing"
         created_by  = "terraform"
       }
     }
@@ -241,9 +304,10 @@ locals {
       name                = "infy-claims-functions-plan"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
-      sku_name            = "P1v2"
+      sku_name            = "B1"   #"P1v2"
       os_type             = "Linux"
       enable_telemetry    = false
+      zone_balancing_enabled = false
       tags = {
         environment = "testing"
         created_by  = "terraform"
@@ -303,19 +367,19 @@ locals {
       name                = "infy-test-function-identity"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
-      env     = dev
+      #env     = dev
     }
     cosmosdb = {
       name                = "mannaged_identity_cosdb-cind-test"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
-      env     = dev
+      #env     = dev
     }
     st = {
       name                = "mannaged_identity_cosdb-cind-test"
       location            = data.azurerm_resource_group.rg.location
       resource_group_name = data.azurerm_resource_group.rg.name
-      env     = prod
+      #env     = prod
     }
   }
 }

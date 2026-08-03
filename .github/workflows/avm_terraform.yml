@@ -156,4 +156,4 @@ jobs:
 
       - name: Terraform apply (test)
         working-directory: ${{ env.TF_WORKDIR }}
-        run: terraform apply -auto-approve -input=false tfplan.bin -var "sqlmi_adminpass=${{ vars.SQLMI_ADMINPASS }}"
+        run: terraform apply -auto-approve -input=${env}.auto.tfvars tfplan.bin #-var "sqlmi_adminpass=${{ vars.SQLMI_ADMINPASS }}"

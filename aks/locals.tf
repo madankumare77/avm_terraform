@@ -415,11 +415,11 @@ locals {
     #   location            = data.azurerm_resource_group.rg_dr.location
     #   resource_group_name = data.azurerm_resource_group.rg_dr.name
     # }
-    aks = {
-      name                = "mi-aks-identity"
-      location            = data.azurerm_resource_group.rg.location
-      resource_group_name = data.azurerm_resource_group.rg.name
-    }
+    # aks = {
+    #   name                = "mi-aks-identity"
+    #   location            = data.azurerm_resource_group.rg.location
+    #   resource_group_name = data.azurerm_resource_group.rg.name
+    # }
   }
 }
 
