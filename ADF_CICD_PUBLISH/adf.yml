@@ -1,12 +1,12 @@
-trigger:
-  branches:
-    include:
-      - adf_publish
+trigger: none
+  # branches:
+  #   include:
+  #     - adf_publish
 
 pr: none
 
 variables:
-  azureServiceConnection: 'mk-prod-service-connection'
+  azureServiceConnection: 'ervice-connection'
   subscriptionId: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
   prodResourceGroupName: 'rg-prod-adf'
   prodDataFactoryName: 'mk-prod-01'
@@ -48,7 +48,7 @@ stages:
               pwsh: true
 
           - task: AzureResourceManagerTemplateDeployment@3
-            displayName: 'Deploy ADF ARM template to Prod'
+            displayName: 'Deploy ADF ARM template'
             inputs:
               deploymentScope: 'Resource Group'
               azureResourceManagerConnection: '$(azureServiceConnection)'
@@ -77,3 +77,6 @@ stages:
                 -deleteDeployment $true
               azurePowerShellVersion: 'LatestVersion'
               pwsh: true
+
+
+

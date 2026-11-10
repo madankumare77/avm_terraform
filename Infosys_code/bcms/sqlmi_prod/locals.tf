@@ -12,6 +12,8 @@ locals {
     }
   }
 }
+
+admin_login = "madan"
  
 locals {
   sqlmi-configs-secondary = {

@@ -10,6 +10,9 @@ permissions:
   actions: read
   deployments: write
 
+env:
+  TF_VARS_sqlmi_administrator_login: ${{ secrets.admin_login }}
+
 jobs:
   plan-test:
     runs-on: ubuntu-latest

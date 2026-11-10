@@ -1,10 +1,6 @@
-name: bcms-hms-dr-CI/CD
+name: bcms-hms
 on:
   workflow_dispatch:
-    # branches:
-    #   - dt_main
-    # paths:
-    #   - bcms_hms/dr/**
  
 permissions:
   contents: write         # action will commit/push encrypted state
@@ -19,7 +15,7 @@ concurrency:
 jobs:
   stage-plan:
     runs-on: arc-runner-set10
-    environment: DR
+    environment: stage-plan
     env:
       TF_WORKDIR: bcms_hms/dr
  
@@ -68,7 +64,7 @@ jobs:
   stage-apply:
     runs-on: arc-runner-set10
     needs: [ stage-plan ]
-    environment: DR
+    environment: stage-apply
  
     env:
       TF_WORKDIR: bcms_hms/dr
